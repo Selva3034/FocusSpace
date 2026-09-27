@@ -22,15 +22,14 @@ export default function Home() {
 
   const [newTask, setNewTask] = useState("");
 
-  const [backendStatus, setBackendStatus] = useState(
-    "Checking..."
-  );
+  const [backendStatus, setBackendStatus] =
+    useState("Checking...");
 
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [timerRunning, setTimerRunning] = useState(false);
 
   // ==================================================
-  // LOAD TASKS FROM BACKEND
+  // LOAD TASKS
   // ==================================================
 
   const loadTasks = async () => {
@@ -39,7 +38,10 @@ export default function Home() {
       setTaskError("");
 
       const response = await fetch(
-        `${API_URL}/api/tasks`
+        `${API_URL}/api/tasks`,
+        {
+          cache: "no-store",
+        }
       );
 
       if (!response.ok) {
@@ -51,7 +53,7 @@ export default function Home() {
       setTasks(data);
     } catch (error) {
       console.error(error);
-      setTaskError("Unable to connect to task server");
+      setTaskError("Unable to load tasks");
     } finally {
       setLoadingTasks(false);
     }
@@ -64,7 +66,10 @@ export default function Home() {
   const checkBackend = async () => {
     try {
       const response = await fetch(
-        `${API_URL}/api/health`
+        `${API_URL}/api/health`,
+        {
+          cache: "no-store",
+        }
       );
 
       if (!response.ok) {
@@ -79,16 +84,7 @@ export default function Home() {
   };
 
   // ==================================================
-  // INITIAL LOAD
-  // ==================================================
-
-  useEffect(() => {
-    loadTasks();
-    checkBackend();
-  }, []);
-
-  // ==================================================
-  // RELOAD TASKS WHEN RETURNING TO DASHBOARD
+  // LOAD DATA WHEN MENU CHANGES
   // ==================================================
 
   useEffect(() => {
@@ -96,6 +92,14 @@ export default function Home() {
       loadTasks();
     }
   }, [activeMenu]);
+
+  // ==================================================
+  // CHECK BACKEND ON START
+  // ==================================================
+
+  useEffect(() => {
+    checkBackend();
+  }, []);
 
   // ==================================================
   // POMODORO TIMER
@@ -121,7 +125,7 @@ export default function Home() {
   }, [timerRunning]);
 
   // ==================================================
-  // FORMAT TIMER
+  // TIMER DISPLAY
   // ==================================================
 
   const minutes = Math.floor(secondsLeft / 60)
@@ -184,6 +188,7 @@ export default function Home() {
   const toggleTask = async (task: Task) => {
     const updatedCompleted = !task.completed;
 
+    // Optimistic UI update
     setTasks((currentTasks) =>
       currentTasks.map((item) =>
         item.id === task.id
@@ -196,6 +201,8 @@ export default function Home() {
     );
 
     try {
+      setTaskError("");
+
       const response = await fetch(
         `${API_URL}/api/tasks/${task.id}`,
         {
@@ -239,7 +246,8 @@ export default function Home() {
     (task) => task.completed
   ).length;
 
-  const pendingTasks = tasks.length - completedTasks;
+  const pendingTasks =
+    tasks.length - completedTasks;
 
   const completionPercentage =
     tasks.length > 0
@@ -260,7 +268,10 @@ export default function Home() {
 
           <div className="mb-10">
             <h1 className="text-2xl font-bold">
-              Focus<span className="text-cyan-400">Space</span>
+              Focus
+              <span className="text-cyan-400">
+                Space
+              </span>
             </h1>
 
             <p className="mt-2 text-xs text-gray-500">
@@ -305,6 +316,7 @@ export default function Home() {
             </p>
 
             <div className="flex items-center gap-2 text-xs">
+
               <span
                 className={`h-2 w-2 rounded-full ${
                   backendStatus === "Online"
@@ -318,6 +330,7 @@ export default function Home() {
               <span className="text-gray-500">
                 Backend {backendStatus}
               </span>
+
             </div>
 
           </div>
@@ -325,7 +338,7 @@ export default function Home() {
         </aside>
 
         {/* ==================================================
-            MAIN CONTENT
+            MAIN AREA
         ================================================== */}
 
         <div className="flex-1">
@@ -339,12 +352,19 @@ export default function Home() {
             <div className="flex items-center justify-between">
 
               <h1 className="text-xl font-bold">
-                Focus<span className="text-cyan-400">
+                Focus
+                <span className="text-cyan-400">
                   Space
                 </span>
               </h1>
 
-              <span className="text-xs text-gray-500">
+              <span
+                className={`text-xs ${
+                  backendStatus === "Online"
+                    ? "text-green-400"
+                    : "text-red-400"
+                }`}
+              >
                 {backendStatus}
               </span>
 
@@ -383,11 +403,13 @@ export default function Home() {
           </header>
 
           {/* ==================================================
-              TASK PAGE
+              TASK MANAGER
           ================================================== */}
 
           {activeMenu === "Tasks" ? (
+
             <TaskManager />
+
           ) : (
 
             /* ==================================================
@@ -455,14 +477,12 @@ export default function Home() {
               </section>
 
               {/* ==================================================
-                  MAIN GRID
+                  TASKS + TIMER
               ================================================== */}
 
               <div className="mt-8 grid gap-8 lg:grid-cols-3">
 
-                {/* ==================================================
-                    TASKS
-                ================================================== */}
+                {/* TASKS */}
 
                 <section className="lg:col-span-2">
 
@@ -492,10 +512,13 @@ export default function Home() {
                   <div className="space-y-3">
 
                     {loadingTasks ? (
+
                       <div className="rounded-2xl border border-white/10 bg-[#101827] p-8 text-center text-gray-500">
                         Loading tasks...
                       </div>
+
                     ) : tasks.length === 0 ? (
+
                       <div className="rounded-2xl border border-white/10 bg-[#101827] p-8 text-center">
 
                         <p className="text-gray-400">
@@ -507,19 +530,24 @@ export default function Home() {
                         </p>
 
                       </div>
+
                     ) : (
-                      tasks.slice(0, 5).map((task) => (
-                        <TaskItem
-                          key={task.id}
-                          task={task}
-                          onToggle={toggleTask}
-                        />
-                      ))
+
+                      tasks
+                        .slice(0, 5)
+                        .map((task) => (
+                          <TaskItem
+                            key={task.id}
+                            task={task}
+                            onToggle={toggleTask}
+                          />
+                        ))
+
                     )}
 
                   </div>
 
-                  {/* ADD TASK */}
+                  {/* QUICK ADD */}
 
                   <div className="mt-5 flex gap-3">
 
@@ -549,9 +577,7 @@ export default function Home() {
 
                 </section>
 
-                {/* ==================================================
-                    POMODORO
-                ================================================== */}
+                {/* POMODORO */}
 
                 <section className="rounded-3xl border border-white/10 bg-[#101827] p-6">
 
@@ -682,49 +708,55 @@ export default function Home() {
 
                 <div className="mt-8 flex h-48 items-end justify-between gap-4">
 
-                  {[40, 65, 50, 80, 60, 90, 45].map(
-                    (height, index) => (
-                      <div
-                        key={index}
-                        className="flex flex-1 flex-col items-center gap-3"
-                      >
+                  {[
+                    40,
+                    65,
+                    50,
+                    80,
+                    60,
+                    90,
+                    45,
+                  ].map((height, index) => (
 
-                        <div className="flex h-40 w-full items-end">
+                    <div
+                      key={index}
+                      className="flex flex-1 flex-col items-center gap-3"
+                    >
 
-                          <div
-                            className="w-full rounded-t-lg bg-cyan-400/60 transition hover:bg-cyan-400"
-                            style={{
-                              height: `${height}%`,
-                            }}
-                          />
+                      <div className="flex h-40 w-full items-end">
 
-                        </div>
-
-                        <span className="text-xs text-gray-600">
-                          {
-                            [
-                              "Mon",
-                              "Tue",
-                              "Wed",
-                              "Thu",
-                              "Fri",
-                              "Sat",
-                              "Sun",
-                            ][index]
-                          }
-                        </span>
+                        <div
+                          className="w-full rounded-t-lg bg-cyan-400/60 transition hover:bg-cyan-400"
+                          style={{
+                            height: `${height}%`,
+                          }}
+                        />
 
                       </div>
-                    )
-                  )}
+
+                      <span className="text-xs text-gray-600">
+                        {
+                          [
+                            "Mon",
+                            "Tue",
+                            "Wed",
+                            "Thu",
+                            "Fri",
+                            "Sat",
+                            "Sun",
+                          ][index]
+                        }
+                      </span>
+
+                    </div>
+
+                  ))}
 
                 </div>
 
               </section>
 
-              {/* ==================================================
-                  FOOTER
-              ================================================== */}
+              {/* FOOTER */}
 
               <footer className="mt-12 border-t border-white/10 pt-6 text-center text-xs text-gray-600">
                 FocusSpace Digital Workspace
@@ -800,16 +832,16 @@ function TaskItem({
 
       <button
         onClick={() => onToggle(task)}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition ${
-          task.completed
-            ? "border-cyan-400 bg-cyan-400 text-black"
-            : "border-gray-600 hover:border-cyan-400"
-        }`}
         aria-label={
           task.completed
             ? "Mark task incomplete"
             : "Mark task complete"
         }
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition ${
+          task.completed
+            ? "border-cyan-400 bg-cyan-400 text-black"
+            : "border-gray-600 hover:border-cyan-400"
+        }`}
       >
         {task.completed && "✓"}
       </button>
