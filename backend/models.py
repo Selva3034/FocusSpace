@@ -101,3 +101,47 @@ class Note(Base):
         ForeignKey("projects.id"),
         nullable=True
     )
+
+
+# ==================================================
+# GOAL MODEL
+# ==================================================
+
+class Goal(Base):
+    __tablename__ = "goals"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    title = Column(
+        String(200),
+        nullable=False
+    )
+
+    description = Column(
+        String(500),
+        default=""
+    )
+
+    category = Column(
+        String(100),
+        default="Personal"
+    )
+
+    target_date = Column(
+        String(20),
+        nullable=True
+    )
+
+    progress = Column(
+        Integer,
+        default=0
+    )
+
+    status = Column(
+        String(30),
+        default="Active"
+    )

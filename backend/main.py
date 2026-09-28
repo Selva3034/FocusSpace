@@ -5,7 +5,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from database import Base, engine, get_db
-from models import Task, Project, Note
+from models import Task, Project, Note, Goal
 
 
 # ==================================================
@@ -66,6 +66,10 @@ app.add_middleware(
 # PYDANTIC SCHEMAS
 # ==================================================
 
+# ------------------------------
+# TASK SCHEMAS
+# ------------------------------
+
 class TaskCreate(BaseModel):
     title: str
     category: str = "Personal"
@@ -81,6 +85,10 @@ class TaskUpdate(BaseModel):
     project_id: int | None = None
 
 
+# ------------------------------
+# PROJECT SCHEMAS
+# ------------------------------
+
 class ProjectCreate(BaseModel):
     name: str
     description: str = ""
@@ -93,6 +101,10 @@ class ProjectUpdate(BaseModel):
     status: str | None = None
 
 
+# ------------------------------
+# NOTE SCHEMAS
+# ------------------------------
+
 class NoteCreate(BaseModel):
     title: str
     content: str = ""
@@ -103,6 +115,28 @@ class NoteUpdate(BaseModel):
     title: str | None = None
     content: str | None = None
     project_id: int | None = None
+
+
+# ------------------------------
+# GOAL SCHEMAS
+# ------------------------------
+
+class GoalCreate(BaseModel):
+    title: str
+    description: str = ""
+    category: str = "Personal"
+    target_date: str | None = None
+    progress: int = 0
+    status: str = "Active"
+
+
+class GoalUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    category: str | None = None
+    target_date: str | None = None
+    progress: int | None = None
+    status: str | None = None
 
 
 # ==================================================
@@ -453,7 +487,6 @@ def get_all_projects_progress(
 # NOTES APIs
 # ==================================================
 
-# GET ALL NOTES
 @app.get("/api/notes")
 def get_notes(
     db: Session = Depends(get_db)
@@ -467,7 +500,6 @@ def get_notes(
     return notes
 
 
-# GET SINGLE NOTE
 @app.get("/api/notes/{note_id}")
 def get_note(
     note_id: int,
@@ -488,13 +520,11 @@ def get_note(
     return note
 
 
-# CREATE NOTE
 @app.post("/api/notes")
 def create_note(
     note_data: NoteCreate,
     db: Session = Depends(get_db)
 ):
-    # Check project if supplied
     if note_data.project_id is not None:
 
         project = (
@@ -524,7 +554,6 @@ def create_note(
     return new_note
 
 
-# UPDATE NOTE
 @app.put("/api/notes/{note_id}")
 def update_note(
     note_id: int,
@@ -572,7 +601,6 @@ def update_note(
     return note
 
 
-# DELETE NOTE
 @app.delete("/api/notes/{note_id}")
 def delete_note(
     note_id: int,
@@ -595,7 +623,8 @@ def delete_note(
 
     return {
         "message": "Note deleted successfully"
-    }   
+    }
+
 
 # ==================================================
 # PROJECT NOTES API
@@ -606,7 +635,6 @@ def get_project_notes(
     project_id: int,
     db: Session = Depends(get_db)
 ):
-    # Check whether project exists
     project = (
         db.query(Project)
         .filter(Project.id == project_id)
@@ -628,4 +656,136 @@ def get_project_notes(
         .all()
     )
 
-    return notes    
+    return notes
+
+
+# ==================================================
+# GOALS APIs
+# ==================================================
+
+@app.get("/api/goals")
+def get_goals(
+    db: Session = Depends(get_db)
+):
+    goals = (
+        db.query(Goal)
+        .order_by(Goal.id.desc())
+        .all()
+    )
+
+    return goals
+
+
+@app.get("/api/goals/{goal_id}")
+def get_goal(
+    goal_id: int,
+    db: Session = Depends(get_db)
+):
+    goal = (
+        db.query(Goal)
+        .filter(Goal.id == goal_id)
+        .first()
+    )
+
+    if goal is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Goal not found"
+        )
+
+    return goal
+
+
+@app.post("/api/goals")
+def create_goal(
+    goal_data: GoalCreate,
+    db: Session = Depends(get_db)
+):
+    if goal_data.progress < 0 or goal_data.progress > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Progress must be between 0 and 100"
+        )
+
+    new_goal = Goal(
+        title=goal_data.title,
+        description=goal_data.description,
+        category=goal_data.category,
+        target_date=goal_data.target_date,
+        progress=goal_data.progress,
+        status=goal_data.status
+    )
+
+    db.add(new_goal)
+    db.commit()
+    db.refresh(new_goal)
+
+    return new_goal
+
+
+@app.put("/api/goals/{goal_id}")
+def update_goal(
+    goal_id: int,
+    goal_data: GoalUpdate,
+    db: Session = Depends(get_db)
+):
+    goal = (
+        db.query(Goal)
+        .filter(Goal.id == goal_id)
+        .first()
+    )
+
+    if goal is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Goal not found"
+        )
+
+    if (
+        goal_data.progress is not None
+        and (
+            goal_data.progress < 0
+            or goal_data.progress > 100
+        )
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Progress must be between 0 and 100"
+        )
+
+    update_data = goal_data.model_dump(
+        exclude_unset=True
+    )
+
+    for field, value in update_data.items():
+        setattr(goal, field, value)
+
+    db.commit()
+    db.refresh(goal)
+
+    return goal
+
+
+@app.delete("/api/goals/{goal_id}")
+def delete_goal(
+    goal_id: int,
+    db: Session = Depends(get_db)
+):
+    goal = (
+        db.query(Goal)
+        .filter(Goal.id == goal_id)
+        .first()
+    )
+
+    if goal is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Goal not found"
+        )
+
+    db.delete(goal)
+    db.commit()
+
+    return {
+        "message": "Goal deleted successfully"
+    }
