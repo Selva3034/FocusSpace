@@ -9,79 +9,44 @@ type Project = {
   status: "Active" | "Completed" | "Paused";
 };
 
-type Task = {
-  id: number;
-  title: string;
-  category: string;
-  priority: "High" | "Medium" | "Low";
-  completed: boolean;
-  project_id: number | null;
+type ProjectProgress = {
+  project_id: number;
+  project_name: string;
+  total_tasks: number;
+  completed_tasks: number;
+  progress: number;
 };
 
 const API_URL = "http://127.0.0.1:8000";
 
-export default function TaskManager() {
-  // ==================================================
-  // TASK STATE
-  // ==================================================
+export default function ProjectsManager() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [progressData, setProgressData] = useState<
+    ProjectProgress[]
+  >([]);
 
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // ==================================================
-  // PROJECT STATE
-  // ==================================================
+  // Create form
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [status, setStatus] =
+    useState<"Active" | "Completed" | "Paused">("Active");
 
-  // ==================================================
-  // CREATE TASK FORM
-  // ==================================================
+  // Edit form
+  const [editingProject, setEditingProject] =
+    useState<Project | null>(null);
 
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("Personal");
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] =
+    useState("");
 
-  const [priority, setPriority] =
-    useState<"High" | "Medium" | "Low">("Medium");
-
-  const [projectId, setProjectId] =
-    useState<number | null>(null);
-
-  // ==================================================
-  // ERROR
-  // ==================================================
+  const [editStatus, setEditStatus] =
+    useState<"Active" | "Completed" | "Paused">("Active");
 
   const [error, setError] = useState("");
-
-  // ==================================================
-  // LOAD TASKS
-  // ==================================================
-
-  const loadTasks = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await fetch(
-        `${API_URL}/api/tasks`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to load tasks");
-      }
-
-      const data = await response.json();
-
-      setTasks(data);
-    } catch (error) {
-      console.error(error);
-      setError("Unable to load tasks");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // ==================================================
   // LOAD PROJECTS
@@ -89,7 +54,8 @@ export default function TaskManager() {
 
   const loadProjects = async () => {
     try {
-      setProjectsLoading(true);
+      setLoading(true);
+      setError("");
 
       const response = await fetch(
         `${API_URL}/api/projects`
@@ -106,26 +72,78 @@ export default function TaskManager() {
       console.error(error);
       setError("Unable to load projects");
     } finally {
-      setProjectsLoading(false);
+      setLoading(false);
     }
   };
 
   // ==================================================
-  // INITIAL LOAD
+  // LOAD PROJECT PROGRESS
   // ==================================================
 
+  const loadProgress = async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/projects-progress`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Failed to load project progress"
+        );
+      }
+
+      const data = await response.json();
+
+      setProgressData(data);
+    } catch (error) {
+      console.error(error);
+      setError("Unable to load project progress");
+    }
+  };
+
+  // ==================================================
+  // LOAD EVERYTHING
+  // ==================================================
+
+  const loadData = async () => {
+    await Promise.all([
+      loadProjects(),
+      loadProgress(),
+    ]);
+  };
+
   useEffect(() => {
-    loadTasks();
-    loadProjects();
+    loadData();
   }, []);
 
   // ==================================================
-  // CREATE TASK
+  // GET PROGRESS FOR PROJECT
   // ==================================================
 
-  const addTask = async () => {
-    if (!title.trim()) {
-      setError("Please enter a task title");
+  const getProjectProgress = (
+    projectId: number
+  ) => {
+    return (
+      progressData.find(
+        (item) =>
+          item.project_id === projectId
+      ) || {
+        project_id: projectId,
+        project_name: "",
+        total_tasks: 0,
+        completed_tasks: 0,
+        progress: 0,
+      }
+    );
+  };
+
+  // ==================================================
+  // CREATE PROJECT
+  // ==================================================
+
+  const addProject = async () => {
+    if (!name.trim()) {
+      setError("Please enter a project name");
       return;
     }
 
@@ -134,163 +152,203 @@ export default function TaskManager() {
       setError("");
 
       const response = await fetch(
-        `${API_URL}/api/tasks`,
+        `${API_URL}/api/projects`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            title: title.trim(),
-            category,
-            priority,
-            project_id: projectId,
+            name: name.trim(),
+            description: description.trim(),
+            status,
           }),
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to create task");
+        throw new Error(
+          "Failed to create project"
+        );
       }
 
-      const newTask = await response.json();
+      setName("");
+      setDescription("");
+      setStatus("Active");
 
-      setTasks((currentTasks) => [
-        ...currentTasks,
-        newTask,
-      ]);
-
-      // Reset form
-      setTitle("");
-      setCategory("Personal");
-      setPriority("Medium");
-      setProjectId(null);
+      await loadData();
     } catch (error) {
       console.error(error);
-      setError("Unable to create task");
+      setError("Unable to create project");
     } finally {
       setSaving(false);
     }
   };
 
   // ==================================================
-  // TOGGLE TASK
+  // START EDITING
   // ==================================================
 
-  const toggleTask = async (task: Task) => {
+  const startEditing = (project: Project) => {
+    setEditingProject(project);
+
+    setEditName(project.name);
+    setEditDescription(project.description);
+    setEditStatus(project.status);
+
+    setError("");
+  };
+
+  // ==================================================
+  // CANCEL EDIT
+  // ==================================================
+
+  const cancelEditing = () => {
+    setEditingProject(null);
+
+    setEditName("");
+    setEditDescription("");
+    setEditStatus("Active");
+
+    setError("");
+  };
+
+  // ==================================================
+  // SAVE EDIT
+  // ==================================================
+
+  const saveProject = async () => {
+    if (!editingProject) {
+      return;
+    }
+
+    if (!editName.trim()) {
+      setError(
+        "Project name cannot be empty"
+      );
+
+      return;
+    }
+
     try {
       setSaving(true);
       setError("");
 
-      const updatedCompleted = !task.completed;
-
-      // Optimistic update
-      setTasks((currentTasks) =>
-        currentTasks.map((item) =>
-          item.id === task.id
-            ? {
-                ...item,
-                completed: updatedCompleted,
-              }
-            : item
-        )
-      );
-
       const response = await fetch(
-        `${API_URL}/api/tasks/${task.id}`,
+        `${API_URL}/api/projects/${editingProject.id}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            completed: updatedCompleted,
+            name: editName.trim(),
+            description:
+              editDescription.trim(),
+            status: editStatus,
           }),
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to update task");
+        throw new Error(
+          "Failed to update project"
+        );
       }
 
-      const updatedTask = await response.json();
+      cancelEditing();
 
-      setTasks((currentTasks) =>
-        currentTasks.map((item) =>
-          item.id === updatedTask.id
-            ? updatedTask
-            : item
-        )
-      );
+      await loadData();
     } catch (error) {
       console.error(error);
-
-      await loadTasks();
-
-      setError("Unable to update task");
+      setError("Unable to update project");
     } finally {
       setSaving(false);
     }
   };
 
   // ==================================================
-  // DELETE TASK
+  // DELETE PROJECT
   // ==================================================
 
-  const deleteTask = async (id: number) => {
+  const deleteProject = async (id: number) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this project?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
     try {
       setSaving(true);
       setError("");
 
       const response = await fetch(
-        `${API_URL}/api/tasks/${id}`,
+        `${API_URL}/api/projects/${id}`,
         {
           method: "DELETE",
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to delete task");
+        throw new Error(
+          "Failed to delete project"
+        );
       }
 
-      setTasks((currentTasks) =>
-        currentTasks.filter(
-          (task) => task.id !== id
-        )
-      );
+      if (editingProject?.id === id) {
+        cancelEditing();
+      }
+
+      await loadData();
     } catch (error) {
       console.error(error);
-      setError("Unable to delete task");
+      setError("Unable to delete project");
     } finally {
       setSaving(false);
     }
   };
 
   // ==================================================
-  // GET PROJECT NAME
+  // UPDATE PROJECT STATUS
   // ==================================================
 
-  const getProjectName = (
-    projectId: number | null
+  const updateStatus = async (
+    project: Project,
+    newStatus: Project["status"]
   ) => {
-    if (projectId === null) {
-      return "No Project";
+    try {
+      setSaving(true);
+      setError("");
+
+      const response = await fetch(
+        `${API_URL}/api/projects/${project.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: newStatus,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Failed to update project"
+        );
+      }
+
+      await loadData();
+    } catch (error) {
+      console.error(error);
+      setError("Unable to update project");
+    } finally {
+      setSaving(false);
     }
-
-    const project = projects.find(
-      (item) => item.id === projectId
-    );
-
-    return project?.name || "Unknown Project";
   };
-
-  // ==================================================
-  // TASK COUNTS
-  // ==================================================
-
-  const completedTasks = tasks.filter(
-    (task) => task.completed
-  ).length;
 
   // ==================================================
   // UI
@@ -303,19 +361,23 @@ export default function TaskManager() {
         {/* HEADER */}
 
         <div className="mb-8">
+
           <p className="text-sm text-gray-500">
-            Your workload
+            Organize your work
           </p>
 
           <div className="mt-2 flex items-center justify-between">
+
             <div>
+
               <h1 className="text-3xl font-bold">
-                Tasks
+                Projects
               </h1>
 
               <p className="mt-2 text-sm text-gray-500">
-                {completedTasks} of {tasks.length} tasks completed
+                Manage your projects and track their progress.
               </p>
+
             </div>
 
             {saving && (
@@ -323,7 +385,9 @@ export default function TaskManager() {
                 Saving...
               </span>
             )}
+
           </div>
+
         </div>
 
         {/* ERROR */}
@@ -334,280 +398,247 @@ export default function TaskManager() {
           </div>
         )}
 
-        {/* CREATE TASK */}
+        {/* CREATE PROJECT */}
 
         <section className="rounded-3xl border border-white/10 bg-[#101827] p-6">
 
           <h2 className="mb-5 text-xl font-bold">
-            Add New Task
+            Create New Project
           </h2>
 
           <div className="grid gap-4 md:grid-cols-2">
 
-            {/* TASK TITLE */}
-
             <input
               type="text"
-              value={title}
+              value={name}
               onChange={(event) =>
-                setTitle(event.target.value)
+                setName(event.target.value)
               }
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  addTask();
-                }
-              }}
-              placeholder="Task title"
+              placeholder="Project name"
               className="rounded-xl border border-white/10 bg-[#1d293b] px-4 py-4 text-white outline-none placeholder:text-gray-400 focus:border-cyan-400"
             />
 
-            {/* CATEGORY */}
-
             <select
-              value={category}
+              value={status}
               onChange={(event) =>
-                setCategory(event.target.value)
-              }
-              className="rounded-xl border border-white/10 bg-[#1d293b] px-4 py-4 text-white outline-none focus:border-cyan-400"
-            >
-              <option value="Personal">
-                Personal
-              </option>
-
-              <option value="Learning">
-                Learning
-              </option>
-
-              <option value="Project">
-                Project
-              </option>
-
-              <option value="Work">
-                Work
-              </option>
-
-              <option value="Health">
-                Health
-              </option>
-            </select>
-
-            {/* PRIORITY */}
-
-            <select
-              value={priority}
-              onChange={(event) =>
-                setPriority(
+                setStatus(
                   event.target.value as
-                    | "High"
-                    | "Medium"
-                    | "Low"
+                    | "Active"
+                    | "Completed"
+                    | "Paused"
                 )
               }
               className="rounded-xl border border-white/10 bg-[#1d293b] px-4 py-4 text-white outline-none focus:border-cyan-400"
             >
-              <option value="High">
-                High
+              <option value="Active">
+                Active
               </option>
 
-              <option value="Medium">
-                Medium
+              <option value="Completed">
+                Completed
               </option>
 
-              <option value="Low">
-                Low
+              <option value="Paused">
+                Paused
               </option>
-            </select>
-
-            {/* PROJECT */}
-
-            <select
-              value={projectId ?? ""}
-              onChange={(event) => {
-                const value = event.target.value;
-
-                setProjectId(
-                  value === ""
-                    ? null
-                    : Number(value)
-                );
-              }}
-              disabled={projectsLoading}
-              className="rounded-xl border border-white/10 bg-[#1d293b] px-4 py-4 text-white outline-none focus:border-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="">
-                {projectsLoading
-                  ? "Loading projects..."
-                  : "No Project"}
-              </option>
-
-              {projects.map((project) => (
-                <option
-                  key={project.id}
-                  value={project.id}
-                >
-                  {project.name}
-                </option>
-              ))}
             </select>
 
           </div>
 
-          {/* ADD BUTTON */}
+          <textarea
+            value={description}
+            onChange={(event) =>
+              setDescription(event.target.value)
+            }
+            placeholder="Project description"
+            rows={4}
+            className="mt-4 w-full resize-none rounded-xl border border-white/10 bg-[#1d293b] px-4 py-4 text-white outline-none placeholder:text-gray-400 focus:border-cyan-400"
+          />
 
           <button
-            onClick={addTask}
+            onClick={addProject}
             disabled={saving}
             className="mt-5 rounded-xl bg-cyan-400 px-6 py-3 font-bold text-black transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving
               ? "Saving..."
-              : "+ Add Task"}
+              : "+ Create Project"}
           </button>
 
         </section>
 
-        {/* TASK LIST */}
+        {/* PROJECT LIST */}
 
         <section className="mt-8">
 
           <div className="mb-4 flex items-center justify-between">
 
             <h2 className="text-2xl font-bold">
-              Your Tasks
+              Your Projects
             </h2>
 
             <span className="text-sm text-gray-500">
-              {tasks.length} total
+              {projects.length} total
             </span>
 
           </div>
 
-          {/* LOADING */}
-
           {loading ? (
+
             <div className="rounded-2xl border border-white/10 bg-[#101827] p-8 text-center text-gray-500">
-              Loading tasks...
+              Loading projects...
             </div>
 
-          ) : tasks.length === 0 ? (
-
-            /* EMPTY */
+          ) : projects.length === 0 ? (
 
             <div className="rounded-2xl border border-white/10 bg-[#101827] p-8 text-center">
 
               <p className="text-gray-400">
-                No tasks yet.
+                No projects yet.
               </p>
 
               <p className="mt-2 text-sm text-gray-600">
-                Create your first task above.
+                Create your first project above.
               </p>
 
             </div>
 
           ) : (
 
-            /* TASKS */
+            <div className="grid gap-4 md:grid-cols-2">
 
-            <div className="space-y-4">
+              {projects.map((project) => {
 
-              {tasks.map((task) => {
+                const projectProgress =
+                  getProjectProgress(
+                    project.id
+                  );
 
-                const priorityClass =
-                  task.priority === "High"
-                    ? "bg-red-400/10 text-red-400"
-                    : task.priority === "Medium"
-                    ? "bg-yellow-400/10 text-yellow-400"
-                    : "bg-green-400/10 text-green-400";
+                const statusClass =
+                  project.status === "Active"
+                    ? "bg-cyan-400/10 text-cyan-400"
+                    : project.status === "Completed"
+                    ? "bg-green-400/10 text-green-400"
+                    : "bg-yellow-400/10 text-yellow-400";
 
                 return (
                   <div
-                    key={task.id}
-                    className={`flex items-center gap-4 rounded-2xl border border-white/10 bg-[#101827] p-5 transition hover:border-cyan-400/20 ${
-                      task.completed
-                        ? "opacity-70"
-                        : ""
-                    }`}
+                    key={project.id}
+                    className="rounded-2xl border border-white/10 bg-[#101827] p-6 transition hover:border-cyan-400/20"
                   >
 
-                    {/* CHECK BUTTON */}
+                    {/* PROJECT HEADER */}
 
-                    <button
-                      onClick={() =>
-                        toggleTask(task)
-                      }
-                      aria-label={
-                        task.completed
-                          ? "Mark task incomplete"
-                          : "Mark task complete"
-                      }
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition ${
-                        task.completed
-                          ? "border-cyan-400 bg-cyan-400 text-black"
-                          : "border-gray-600 hover:border-cyan-400"
-                      }`}
-                    >
-                      {task.completed && "✓"}
-                    </button>
+                    <div className="flex items-start justify-between gap-4">
 
-                    {/* TASK INFORMATION */}
+                      <div className="min-w-0">
 
-                    <div className="min-w-0 flex-1">
+                        <h3 className="text-lg font-bold">
+                          {project.name}
+                        </h3>
 
-                      <h3
-                        className={`text-base font-semibold ${
-                          task.completed
-                            ? "text-gray-500 line-through"
-                            : "text-white"
-                        }`}
+                        <p className="mt-2 text-sm leading-6 text-gray-400">
+                          {project.description ||
+                            "No description provided."}
+                        </p>
+
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${statusClass}`}
                       >
-                        {task.title}
-                      </h3>
+                        {project.status}
+                      </span>
 
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                    </div>
 
-                        {/* CATEGORY */}
+                    {/* PROGRESS */}
 
-                        <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-gray-400">
-                          {task.category}
+                    <div className="mt-6">
+
+                      <div className="mb-2 flex items-center justify-between">
+
+                        <span className="text-sm font-medium text-gray-300">
+                          Progress
                         </span>
 
-                        {/* PROJECT */}
-
-                        <span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs text-cyan-400">
-                          {getProjectName(
-                            task.project_id
-                          )}
+                        <span className="text-sm font-semibold text-cyan-400">
+                          {projectProgress.progress}%
                         </span>
 
                       </div>
 
+                      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+
+                        <div
+                          className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+                          style={{
+                            width: `${projectProgress.progress}%`,
+                          }}
+                        />
+
+                      </div>
+
+                      <p className="mt-2 text-xs text-gray-500">
+                        {projectProgress.completed_tasks} of{" "}
+                        {projectProgress.total_tasks}{" "}
+                        tasks completed
+                      </p>
+
                     </div>
 
-                    {/* PRIORITY */}
+                    {/* PROJECT ACTIONS */}
 
-                    <span
-                      className={`hidden rounded-full px-3 py-1 text-xs font-medium sm:block ${priorityClass}`}
-                    >
-                      {task.priority}
-                    </span>
+                    <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
 
-                    {/* ID */}
+                      <select
+                        value={project.status}
+                        onChange={(event) =>
+                          updateStatus(
+                            project,
+                            event.target.value as Project["status"]
+                          )
+                        }
+                        className="rounded-lg border border-white/10 bg-[#1d293b] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400"
+                      >
 
-                    <span className="text-xs text-gray-600">
-                      #{task.id}
-                    </span>
+                        <option value="Active">
+                          Active
+                        </option>
 
-                    {/* DELETE */}
+                        <option value="Completed">
+                          Completed
+                        </option>
 
-                    <button
-                      onClick={() =>
-                        deleteTask(task.id)
-                      }
-                      className="rounded-lg px-3 py-2 text-xs text-gray-500 transition hover:bg-red-400/10 hover:text-red-400"
-                    >
-                      Delete
-                    </button>
+                        <option value="Paused">
+                          Paused
+                        </option>
+
+                      </select>
+
+                      <div className="flex gap-2">
+
+                        <button
+                          onClick={() =>
+                            startEditing(project)
+                          }
+                          className="rounded-lg px-3 py-2 text-xs text-cyan-400 transition hover:bg-cyan-400/10"
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            deleteProject(project.id)
+                          }
+                          className="rounded-lg px-3 py-2 text-xs text-gray-500 transition hover:bg-red-400/10 hover:text-red-400"
+                        >
+                          Delete
+                        </button>
+
+                      </div>
+
+                    </div>
 
                   </div>
                 );
@@ -618,7 +649,118 @@ export default function TaskManager() {
 
         </section>
 
+        {/* EDIT PROJECT MODAL */}
+
+        {editingProject && (
+
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+
+            <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#101827] p-6 shadow-2xl">
+
+              <div className="flex items-center justify-between">
+
+                <div>
+
+                  <h2 className="text-xl font-bold">
+                    Edit Project
+                  </h2>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    Update your project details.
+                  </p>
+
+                </div>
+
+                <button
+                  onClick={cancelEditing}
+                  className="rounded-lg px-3 py-2 text-gray-500 hover:bg-white/5 hover:text-white"
+                >
+                  ✕
+                </button>
+
+              </div>
+
+              <div className="mt-6 space-y-4">
+
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(event) =>
+                    setEditName(event.target.value)
+                  }
+                  placeholder="Project name"
+                  className="w-full rounded-xl border border-white/10 bg-[#1d293b] px-4 py-4 text-white outline-none placeholder:text-gray-400 focus:border-cyan-400"
+                />
+
+                <textarea
+                  value={editDescription}
+                  onChange={(event) =>
+                    setEditDescription(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Project description"
+                  rows={5}
+                  className="w-full resize-none rounded-xl border border-white/10 bg-[#1d293b] px-4 py-4 text-white outline-none placeholder:text-gray-400 focus:border-cyan-400"
+                />
+
+                <select
+                  value={editStatus}
+                  onChange={(event) =>
+                    setEditStatus(
+                      event.target.value as
+                        | "Active"
+                        | "Completed"
+                        | "Paused"
+                    )
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#1d293b] px-4 py-4 text-white outline-none focus:border-cyan-400"
+                >
+
+                  <option value="Active">
+                    Active
+                  </option>
+
+                  <option value="Completed">
+                    Completed
+                  </option>
+
+                  <option value="Paused">
+                    Paused
+                  </option>
+
+                </select>
+
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+
+                <button
+                  onClick={cancelEditing}
+                  className="rounded-xl border border-white/10 px-5 py-3 text-sm text-gray-400 transition hover:bg-white/5 hover:text-white"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={saveProject}
+                  disabled={saving}
+                  className="rounded-xl bg-cyan-400 px-5 py-3 text-sm font-bold text-black transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving
+                    ? "Saving..."
+                    : "Save Changes"}
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        )}
+
       </div>
     </main>
   );
-} 
+}

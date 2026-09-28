@@ -329,7 +329,7 @@ def delete_project(
             detail="Project not found"
         )
 
-    # Remove project association from its tasks
+    # Remove project association from tasks
     tasks = (
         db.query(Task)
         .filter(Task.project_id == project_id)
@@ -345,3 +345,107 @@ def delete_project(
     return {
         "message": "Project deleted successfully"
     }
+
+
+# ==================================================
+# PROJECT PROGRESS API
+# ==================================================
+
+@app.get("/api/projects/{project_id}/progress")
+def get_project_progress(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    # Find the project
+    project = (
+        db.query(Project)
+        .filter(Project.id == project_id)
+        .first()
+    )
+
+    if project is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found"
+        )
+
+    # Get all tasks belonging to this project
+    tasks = (
+        db.query(Task)
+        .filter(Task.project_id == project_id)
+        .all()
+    )
+
+    # Total number of tasks
+    total_tasks = len(tasks)
+
+    # Number of completed tasks
+    completed_tasks = sum(
+        1
+        for task in tasks
+        if task.completed
+    )
+
+    # Calculate progress percentage
+    if total_tasks == 0:
+        progress = 0
+    else:
+        progress = round(
+            (completed_tasks / total_tasks) * 100
+        )
+
+    return {
+        "project_id": project.id,
+        "project_name": project.name,
+        "total_tasks": total_tasks,
+        "completed_tasks": completed_tasks,
+        "progress": progress
+    }
+
+
+# ==================================================
+# ALL PROJECTS WITH PROGRESS
+# ==================================================
+
+@app.get("/api/projects-progress")
+def get_all_projects_progress(
+    db: Session = Depends(get_db)
+):
+    projects = db.query(Project).all()
+
+    results = []
+
+    for project in projects:
+
+        tasks = (
+            db.query(Task)
+            .filter(
+                Task.project_id == project.id
+            )
+            .all()
+        )
+
+        total_tasks = len(tasks)
+
+        completed_tasks = sum(
+            1
+            for task in tasks
+            if task.completed
+        )
+
+        if total_tasks == 0:
+            progress = 0
+        else:
+            progress = round(
+                (completed_tasks / total_tasks) * 100
+            )
+
+        results.append({
+            "project_id": project.id,
+            "project_name": project.name,
+            "total_tasks": total_tasks,
+            "completed_tasks": completed_tasks,
+            "progress": progress
+        })
+
+    return results
