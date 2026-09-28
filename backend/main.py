@@ -5,7 +5,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from database import Base, engine, get_db
-from models import Task, Project
+from models import Task, Project, Note
 
 
 # ==================================================
@@ -18,9 +18,6 @@ Base.metadata.create_all(bind=engine)
 # ==================================================
 # DATABASE MIGRATION
 # ==================================================
-
-# Add project_id to the existing tasks table
-# if the column does not already exist.
 
 inspector = inspect(engine)
 
@@ -96,6 +93,18 @@ class ProjectUpdate(BaseModel):
     status: str | None = None
 
 
+class NoteCreate(BaseModel):
+    title: str
+    content: str = ""
+    project_id: int | None = None
+
+
+class NoteUpdate(BaseModel):
+    title: str | None = None
+    content: str | None = None
+    project_id: int | None = None
+
+
 # ==================================================
 # HOME
 # ==================================================
@@ -123,7 +132,6 @@ def health_check():
 # TASK APIs
 # ==================================================
 
-# GET ALL TASKS
 @app.get("/api/tasks")
 def get_tasks(
     db: Session = Depends(get_db)
@@ -133,13 +141,11 @@ def get_tasks(
     return tasks
 
 
-# CREATE TASK
 @app.post("/api/tasks")
 def create_task(
     task_data: TaskCreate,
     db: Session = Depends(get_db)
 ):
-    # Check project if project_id is provided
     if task_data.project_id is not None:
 
         project = (
@@ -171,7 +177,6 @@ def create_task(
     return new_task
 
 
-# UPDATE TASK
 @app.put("/api/tasks/{task_id}")
 def update_task(
     task_id: int,
@@ -190,7 +195,6 @@ def update_task(
             detail="Task not found"
         )
 
-    # Check project if project_id is being changed
     if task_data.project_id is not None:
 
         project = (
@@ -220,7 +224,6 @@ def update_task(
     return task
 
 
-# DELETE TASK
 @app.delete("/api/tasks/{task_id}")
 def delete_task(
     task_id: int,
@@ -250,7 +253,6 @@ def delete_task(
 # PROJECT APIs
 # ==================================================
 
-# GET ALL PROJECTS
 @app.get("/api/projects")
 def get_projects(
     db: Session = Depends(get_db)
@@ -260,7 +262,6 @@ def get_projects(
     return projects
 
 
-# CREATE PROJECT
 @app.post("/api/projects")
 def create_project(
     project_data: ProjectCreate,
@@ -279,7 +280,6 @@ def create_project(
     return new_project
 
 
-# UPDATE PROJECT
 @app.put("/api/projects/{project_id}")
 def update_project(
     project_id: int,
@@ -311,7 +311,6 @@ def update_project(
     return project
 
 
-# DELETE PROJECT
 @app.delete("/api/projects/{project_id}")
 def delete_project(
     project_id: int,
@@ -329,7 +328,6 @@ def delete_project(
             detail="Project not found"
         )
 
-    # Remove project association from tasks
     tasks = (
         db.query(Task)
         .filter(Task.project_id == project_id)
@@ -338,6 +336,15 @@ def delete_project(
 
     for task in tasks:
         task.project_id = None
+
+    notes = (
+        db.query(Note)
+        .filter(Note.project_id == project_id)
+        .all()
+    )
+
+    for note in notes:
+        note.project_id = None
 
     db.delete(project)
     db.commit()
@@ -348,7 +355,7 @@ def delete_project(
 
 
 # ==================================================
-# PROJECT PROGRESS API
+# PROJECT PROGRESS
 # ==================================================
 
 @app.get("/api/projects/{project_id}/progress")
@@ -356,7 +363,6 @@ def get_project_progress(
     project_id: int,
     db: Session = Depends(get_db)
 ):
-    # Find the project
     project = (
         db.query(Project)
         .filter(Project.id == project_id)
@@ -369,24 +375,20 @@ def get_project_progress(
             detail="Project not found"
         )
 
-    # Get all tasks belonging to this project
     tasks = (
         db.query(Task)
         .filter(Task.project_id == project_id)
         .all()
     )
 
-    # Total number of tasks
     total_tasks = len(tasks)
 
-    # Number of completed tasks
     completed_tasks = sum(
         1
         for task in tasks
         if task.completed
     )
 
-    # Calculate progress percentage
     if total_tasks == 0:
         progress = 0
     else:
@@ -402,10 +404,6 @@ def get_project_progress(
         "progress": progress
     }
 
-
-# ==================================================
-# ALL PROJECTS WITH PROGRESS
-# ==================================================
 
 @app.get("/api/projects-progress")
 def get_all_projects_progress(
@@ -449,3 +447,185 @@ def get_all_projects_progress(
         })
 
     return results
+
+
+# ==================================================
+# NOTES APIs
+# ==================================================
+
+# GET ALL NOTES
+@app.get("/api/notes")
+def get_notes(
+    db: Session = Depends(get_db)
+):
+    notes = (
+        db.query(Note)
+        .order_by(Note.id.desc())
+        .all()
+    )
+
+    return notes
+
+
+# GET SINGLE NOTE
+@app.get("/api/notes/{note_id}")
+def get_note(
+    note_id: int,
+    db: Session = Depends(get_db)
+):
+    note = (
+        db.query(Note)
+        .filter(Note.id == note_id)
+        .first()
+    )
+
+    if note is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Note not found"
+        )
+
+    return note
+
+
+# CREATE NOTE
+@app.post("/api/notes")
+def create_note(
+    note_data: NoteCreate,
+    db: Session = Depends(get_db)
+):
+    # Check project if supplied
+    if note_data.project_id is not None:
+
+        project = (
+            db.query(Project)
+            .filter(
+                Project.id == note_data.project_id
+            )
+            .first()
+        )
+
+        if project is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found"
+            )
+
+    new_note = Note(
+        title=note_data.title,
+        content=note_data.content,
+        project_id=note_data.project_id
+    )
+
+    db.add(new_note)
+    db.commit()
+    db.refresh(new_note)
+
+    return new_note
+
+
+# UPDATE NOTE
+@app.put("/api/notes/{note_id}")
+def update_note(
+    note_id: int,
+    note_data: NoteUpdate,
+    db: Session = Depends(get_db)
+):
+    note = (
+        db.query(Note)
+        .filter(Note.id == note_id)
+        .first()
+    )
+
+    if note is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Note not found"
+        )
+
+    if note_data.project_id is not None:
+
+        project = (
+            db.query(Project)
+            .filter(
+                Project.id == note_data.project_id
+            )
+            .first()
+        )
+
+        if project is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found"
+            )
+
+    update_data = note_data.model_dump(
+        exclude_unset=True
+    )
+
+    for field, value in update_data.items():
+        setattr(note, field, value)
+
+    db.commit()
+    db.refresh(note)
+
+    return note
+
+
+# DELETE NOTE
+@app.delete("/api/notes/{note_id}")
+def delete_note(
+    note_id: int,
+    db: Session = Depends(get_db)
+):
+    note = (
+        db.query(Note)
+        .filter(Note.id == note_id)
+        .first()
+    )
+
+    if note is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Note not found"
+        )
+
+    db.delete(note)
+    db.commit()
+
+    return {
+        "message": "Note deleted successfully"
+    }   
+
+# ==================================================
+# PROJECT NOTES API
+# ==================================================
+
+@app.get("/api/projects/{project_id}/notes")
+def get_project_notes(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    # Check whether project exists
+    project = (
+        db.query(Project)
+        .filter(Project.id == project_id)
+        .first()
+    )
+
+    if project is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found"
+        )
+
+    notes = (
+        db.query(Note)
+        .filter(
+            Note.project_id == project_id
+        )
+        .order_by(Note.id.desc())
+        .all()
+    )
+
+    return notes    

@@ -1,7 +1,11 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 
 from database import Base
 
+
+# ==================================================
+# TASK MODEL
+# ==================================================
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -39,6 +43,10 @@ class Task(Base):
     )
 
 
+# ==================================================
+# PROJECT MODEL
+# ==================================================
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -61,4 +69,35 @@ class Project(Base):
     status = Column(
         String(30),
         default="Active"
+    )
+
+
+# ==================================================
+# NOTE MODEL
+# ==================================================
+
+class Note(Base):
+    __tablename__ = "notes"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    title = Column(
+        String(200),
+        nullable=False
+    )
+
+    content = Column(
+        Text,
+        nullable=False,
+        default=""
+    )
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id"),
+        nullable=True
     )

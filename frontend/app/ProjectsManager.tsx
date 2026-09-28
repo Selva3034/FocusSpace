@@ -17,13 +17,18 @@ type ProjectProgress = {
   progress: number;
 };
 
+type ProjectNote = {
+  id: number;
+  title: string;
+  content: string;
+  project_id: number | null;
+};
+
 const API_URL = "http://127.0.0.1:8000";
 
 export default function ProjectsManager() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [progressData, setProgressData] = useState<
-    ProjectProgress[]
-  >([]);
+  const [progressData, setProgressData] = useState<ProjectProgress[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,13 +45,25 @@ export default function ProjectsManager() {
     useState<Project | null>(null);
 
   const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] =
-    useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   const [editStatus, setEditStatus] =
     useState<"Active" | "Completed" | "Paused">("Active");
 
   const [error, setError] = useState("");
+
+  // ==================================================
+  // PROJECT NOTES
+  // ==================================================
+
+  const [projectNotes, setProjectNotes] = useState<
+    Record<number, ProjectNote[]>
+  >({});
+
+  const [expandedProjectId, setExpandedProjectId] =
+    useState<number | null>(null);
+
+  const [notesLoading, setNotesLoading] = useState(false);
 
   // ==================================================
   // LOAD PROJECTS
@@ -135,6 +152,58 @@ export default function ProjectsManager() {
         progress: 0,
       }
     );
+  };
+
+  // ==================================================
+  // LOAD PROJECT NOTES
+  // ==================================================
+
+  const loadProjectNotes = async (
+    projectId: number
+  ) => {
+    try {
+      setNotesLoading(true);
+      setError("");
+
+      const response = await fetch(
+        `${API_URL}/api/projects/${projectId}/notes`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Failed to load project notes"
+        );
+      }
+
+      const data = await response.json();
+
+      setProjectNotes((previous) => ({
+        ...previous,
+        [projectId]: data,
+      }));
+    } catch (error) {
+      console.error(error);
+      setError("Unable to load project notes");
+    } finally {
+      setNotesLoading(false);
+    }
+  };
+
+  // ==================================================
+  // TOGGLE PROJECT NOTES
+  // ==================================================
+
+  const toggleProjectNotes = async (
+    projectId: number
+  ) => {
+    if (expandedProjectId === projectId) {
+      setExpandedProjectId(null);
+      return;
+    }
+
+    setExpandedProjectId(projectId);
+
+    await loadProjectNotes(projectId);
   };
 
   // ==================================================
@@ -243,8 +312,7 @@ export default function ProjectsManager() {
           },
           body: JSON.stringify({
             name: editName.trim(),
-            description:
-              editDescription.trim(),
+            description: editDescription.trim(),
             status: editStatus,
           }),
         }
@@ -300,6 +368,20 @@ export default function ProjectsManager() {
       if (editingProject?.id === id) {
         cancelEditing();
       }
+
+      if (expandedProjectId === id) {
+        setExpandedProjectId(null);
+      }
+
+      setProjectNotes((previous) => {
+        const updated = {
+          ...previous,
+        };
+
+        delete updated[id];
+
+        return updated;
+      });
 
       await loadData();
     } catch (error) {
@@ -514,6 +596,12 @@ export default function ProjectsManager() {
                     project.id
                   );
 
+                const notes =
+                  projectNotes[project.id] || [];
+
+                const isNotesExpanded =
+                  expandedProjectId === project.id;
+
                 const statusClass =
                   project.status === "Active"
                     ? "bg-cyan-400/10 text-cyan-400"
@@ -584,6 +672,99 @@ export default function ProjectsManager() {
                         {projectProgress.total_tasks}{" "}
                         tasks completed
                       </p>
+
+                    </div>
+
+                    {/* PROJECT NOTES */}
+
+                    <div className="mt-6 border-t border-white/10 pt-5">
+
+                      <div className="flex items-center justify-between gap-3">
+
+                        <div>
+
+                          <h4 className="text-sm font-semibold text-gray-200">
+                            Project Notes
+                          </h4>
+
+                          <p className="mt-1 text-xs text-gray-500">
+                            {isNotesExpanded
+                              ? `${notes.length} note${
+                                  notes.length === 1
+                                    ? ""
+                                    : "s"
+                                }`
+                              : "View notes linked to this project"}
+                          </p>
+
+                        </div>
+
+                        <button
+                          onClick={() =>
+                            toggleProjectNotes(
+                              project.id
+                            )
+                          }
+                          className="rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-cyan-400 transition hover:bg-cyan-400/10"
+                        >
+                          {isNotesExpanded
+                            ? "Hide Notes"
+                            : "View Notes"}
+                        </button>
+
+                      </div>
+
+                      {isNotesExpanded && (
+
+                        <div className="mt-4 space-y-3">
+
+                          {notesLoading ? (
+
+                            <div className="rounded-xl border border-white/10 bg-[#1d293b] p-4 text-center text-sm text-gray-500">
+                              Loading notes...
+                            </div>
+
+                          ) : notes.length === 0 ? (
+
+                            <div className="rounded-xl border border-dashed border-white/10 bg-[#1d293b]/50 p-5 text-center">
+
+                              <p className="text-sm text-gray-400">
+                                No notes assigned to this project.
+                              </p>
+
+                              <p className="mt-1 text-xs text-gray-600">
+                                Assign a note to this project from the Notes section.
+                              </p>
+
+                            </div>
+
+                          ) : (
+
+                            notes.map((note) => (
+
+                              <div
+                                key={note.id}
+                                className="rounded-xl border border-white/10 bg-[#1d293b] p-4"
+                              >
+
+                                <h5 className="font-semibold text-white">
+                                  {note.title}
+                                </h5>
+
+                                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-400">
+                                  {note.content ||
+                                    "No content available."}
+                                </p>
+
+                              </div>
+
+                            ))
+
+                          )}
+
+                        </div>
+
+                      )}
 
                     </div>
 
