@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from database import Base, engine, get_db
@@ -8,10 +9,34 @@ from models import Task, Project
 
 
 # ==================================================
-# CREATE DATABASE TABLES
+# DATABASE SETUP
 # ==================================================
 
 Base.metadata.create_all(bind=engine)
+
+
+# ==================================================
+# DATABASE MIGRATION
+# ==================================================
+
+# Add project_id to the existing tasks table
+# if the column does not already exist.
+
+inspector = inspect(engine)
+
+task_columns = [
+    column["name"]
+    for column in inspector.get_columns("tasks")
+]
+
+if "project_id" not in task_columns:
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE tasks "
+                "ADD COLUMN project_id INTEGER"
+            )
+        )
 
 
 # ==================================================
@@ -41,13 +66,14 @@ app.add_middleware(
 
 
 # ==================================================
-# TASK REQUEST MODELS
+# PYDANTIC SCHEMAS
 # ==================================================
 
 class TaskCreate(BaseModel):
     title: str
     category: str = "Personal"
     priority: str = "Medium"
+    project_id: int | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -55,11 +81,8 @@ class TaskUpdate(BaseModel):
     category: str | None = None
     priority: str | None = None
     completed: bool | None = None
+    project_id: int | None = None
 
-
-# ==================================================
-# PROJECT REQUEST MODELS
-# ==================================================
 
 class ProjectCreate(BaseModel):
     name: str
@@ -97,9 +120,10 @@ def health_check():
 
 
 # ==================================================
-# TASKS
+# TASK APIs
 # ==================================================
 
+# GET ALL TASKS
 @app.get("/api/tasks")
 def get_tasks(
     db: Session = Depends(get_db)
@@ -109,16 +133,35 @@ def get_tasks(
     return tasks
 
 
+# CREATE TASK
 @app.post("/api/tasks")
 def create_task(
     task_data: TaskCreate,
     db: Session = Depends(get_db)
 ):
+    # Check project if project_id is provided
+    if task_data.project_id is not None:
+
+        project = (
+            db.query(Project)
+            .filter(
+                Project.id == task_data.project_id
+            )
+            .first()
+        )
+
+        if project is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found"
+            )
+
     new_task = Task(
         title=task_data.title,
         category=task_data.category,
         priority=task_data.priority,
-        completed=False
+        completed=False,
+        project_id=task_data.project_id
     )
 
     db.add(new_task)
@@ -128,6 +171,7 @@ def create_task(
     return new_task
 
 
+# UPDATE TASK
 @app.put("/api/tasks/{task_id}")
 def update_task(
     task_id: int,
@@ -146,6 +190,23 @@ def update_task(
             detail="Task not found"
         )
 
+    # Check project if project_id is being changed
+    if task_data.project_id is not None:
+
+        project = (
+            db.query(Project)
+            .filter(
+                Project.id == task_data.project_id
+            )
+            .first()
+        )
+
+        if project is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found"
+            )
+
     update_data = task_data.model_dump(
         exclude_unset=True
     )
@@ -159,6 +220,7 @@ def update_task(
     return task
 
 
+# DELETE TASK
 @app.delete("/api/tasks/{task_id}")
 def delete_task(
     task_id: int,
@@ -185,9 +247,10 @@ def delete_task(
 
 
 # ==================================================
-# PROJECTS
+# PROJECT APIs
 # ==================================================
 
+# GET ALL PROJECTS
 @app.get("/api/projects")
 def get_projects(
     db: Session = Depends(get_db)
@@ -197,6 +260,7 @@ def get_projects(
     return projects
 
 
+# CREATE PROJECT
 @app.post("/api/projects")
 def create_project(
     project_data: ProjectCreate,
@@ -215,6 +279,7 @@ def create_project(
     return new_project
 
 
+# UPDATE PROJECT
 @app.put("/api/projects/{project_id}")
 def update_project(
     project_id: int,
@@ -246,6 +311,7 @@ def update_project(
     return project
 
 
+# DELETE PROJECT
 @app.delete("/api/projects/{project_id}")
 def delete_project(
     project_id: int,
@@ -262,6 +328,16 @@ def delete_project(
             status_code=404,
             detail="Project not found"
         )
+
+    # Remove project association from its tasks
+    tasks = (
+        db.query(Task)
+        .filter(Task.project_id == project_id)
+        .all()
+    )
+
+    for task in tasks:
+        task.project_id = None
 
     db.delete(project)
     db.commit()

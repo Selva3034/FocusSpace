@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 
 from database import Base
 
@@ -30,6 +30,12 @@ class Task(Base):
     completed = Column(
         Boolean,
         default=False
+    )
+
+    project_id = Column(
+        Integer,
+        ForeignKey("projects.id"),
+        nullable=True
     )
 
 
