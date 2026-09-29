@@ -40,6 +40,13 @@ type ProjectProgress = {
   progress: number;
 };
 
+type Note = {
+  id: number;
+  title: string;
+  content: string;
+  project_id: number | null;
+};
+
 type ActiveMenu =
   | "Dashboard"
   | "Tasks"
@@ -70,13 +77,23 @@ export default function Home() {
   // PROJECT STATE
   // ==================================================
 
-  const [projects, setProjects] =
-    useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>(
+    []
+  );
 
   const [projectProgress, setProjectProgress] =
     useState<ProjectProgress[]>([]);
 
   const [projectsLoading, setProjectsLoading] =
+    useState(true);
+
+  // ==================================================
+  // NOTE STATE
+  // ==================================================
+
+  const [notes, setNotes] = useState<Note[]>([]);
+
+  const [notesLoading, setNotesLoading] =
     useState(true);
 
   // ==================================================
@@ -184,6 +201,32 @@ export default function Home() {
   };
 
   // ==================================================
+  // LOAD NOTES
+  // ==================================================
+
+  const loadNotes = async () => {
+    try {
+      setNotesLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/api/notes`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load notes");
+      }
+
+      const data = await response.json();
+
+      setNotes(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setNotesLoading(false);
+    }
+  };
+
+  // ==================================================
   // CHECK BACKEND
   // ==================================================
 
@@ -207,6 +250,7 @@ export default function Home() {
     loadTasks();
     loadGoals();
     loadProjects();
+    loadNotes();
     checkBackend();
   }, []);
 
@@ -219,6 +263,7 @@ export default function Home() {
       loadTasks();
       loadGoals();
       loadProjects();
+      loadNotes();
     }
   }, [activeMenu]);
 
@@ -317,12 +362,12 @@ export default function Home() {
         )
       );
 
-      loadProjects();
+      await loadProjects();
     } catch (error) {
       console.error(error);
 
-      loadTasks();
-      loadProjects();
+      await loadTasks();
+      await loadProjects();
     }
   };
 
@@ -477,7 +522,7 @@ export default function Home() {
   };
 
   // ==================================================
-  // GOAL DATE FORMAT
+  // GOAL HELPERS
   // ==================================================
 
   const formatGoalDate = (
@@ -506,10 +551,6 @@ export default function Home() {
       }
     );
   };
-
-  // ==================================================
-  // GOAL STATUS STYLE
-  // ==================================================
 
   const getGoalStatusClass = (
     status: Goal["status"]
@@ -657,6 +698,20 @@ export default function Home() {
               title="Goal Progress"
               value={`${goalProgress}%`}
               description="Overall goal progress"
+            />
+
+          </div>
+
+          {/* ==================================================
+              NOTES STATISTICS
+          ================================================== */}
+
+          <div className="mt-4">
+
+            <StatCard
+              title="Total Notes"
+              value={notes.length}
+              description="All your notes"
             />
 
           </div>
@@ -975,6 +1030,135 @@ export default function Home() {
           </section>
 
           {/* ==================================================
+              RECENT NOTES
+          ================================================== */}
+
+          <section className="mt-8">
+
+            <div className="mb-4 flex items-center justify-between">
+
+              <div>
+
+                <h2 className="text-2xl font-bold">
+                  Recent Notes
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Your latest notes and ideas.
+                </p>
+
+              </div>
+
+              <button
+                onClick={() =>
+                  setActiveMenu("Notes")
+                }
+                className="text-sm font-medium text-cyan-400 transition hover:text-cyan-300"
+              >
+                View all
+              </button>
+
+            </div>
+
+            {notesLoading ? (
+
+              <div className="rounded-2xl border border-white/10 bg-[#101827] p-8 text-center text-gray-500">
+                Loading notes...
+              </div>
+
+            ) : notes.length === 0 ? (
+
+              <div className="rounded-2xl border border-white/10 bg-[#101827] p-8 text-center">
+
+                <p className="text-gray-400">
+                  No notes yet.
+                </p>
+
+                <p className="mt-2 text-sm text-gray-600">
+                  Create your first note to save your ideas.
+                </p>
+
+                <button
+                  onClick={() =>
+                    setActiveMenu("Notes")
+                  }
+                  className="mt-5 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-bold text-black transition hover:bg-cyan-300"
+                >
+                  Create Note
+                </button>
+
+              </div>
+
+            ) : (
+
+              <div className="grid gap-4 md:grid-cols-2">
+
+                {notes
+                  .slice(0, 4)
+                  .map((note) => {
+
+                    const linkedProject =
+                      projects.find(
+                        (project) =>
+                          project.id ===
+                          note.project_id
+                      );
+
+                    return (
+                      <div
+                        key={note.id}
+                        className="rounded-2xl border border-white/10 bg-[#101827] p-5 transition hover:border-cyan-400/20"
+                      >
+
+                        <div className="flex items-start justify-between gap-4">
+
+                          <div className="min-w-0">
+
+                            <h3 className="truncate font-bold">
+                              {note.title}
+                            </h3>
+
+                            <p className="mt-2 line-clamp-3 text-sm leading-6 text-gray-400">
+                              {note.content ||
+                                "No content available."}
+                            </p>
+
+                          </div>
+
+                          <span className="shrink-0 rounded-full bg-cyan-400/10 px-3 py-1 text-xs text-cyan-400">
+                            {linkedProject
+                              ? linkedProject.name
+                              : "Personal"}
+                          </span>
+
+                        </div>
+
+                        <div className="mt-5 flex items-center justify-end">
+
+                          <button
+                            onClick={() =>
+                              setActiveMenu(
+                                "Notes"
+                              )
+                            }
+                            className="text-xs font-medium text-cyan-400 transition hover:text-cyan-300"
+                          >
+                            Open Notes
+                          </button>
+
+                        </div>
+
+                      </div>
+                    );
+                  })}
+
+              </div>
+
+            )}
+
+          </section>
+
+          {/* ==================================================
               MAIN DASHBOARD GRID
           ================================================== */}
 
@@ -1032,7 +1216,8 @@ export default function Home() {
                     .map((task) => {
 
                       const priorityClass =
-                        task.priority === "High"
+                        task.priority ===
+                        "High"
                           ? "bg-red-400/10 text-red-400"
                           : task.priority ===
                             "Medium"
