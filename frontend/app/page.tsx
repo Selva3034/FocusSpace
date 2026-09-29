@@ -25,6 +25,21 @@ type Goal = {
   status: "Active" | "Completed" | "Paused";
 };
 
+type Project = {
+  id: number;
+  name: string;
+  description: string;
+  status: string;
+};
+
+type ProjectProgress = {
+  project_id: number;
+  project_name: string;
+  total_tasks: number;
+  completed_tasks: number;
+  progress: number;
+};
+
 type ActiveMenu =
   | "Dashboard"
   | "Tasks"
@@ -50,6 +65,19 @@ export default function Home() {
   // ==================================================
 
   const [goals, setGoals] = useState<Goal[]>([]);
+
+  // ==================================================
+  // PROJECT STATE
+  // ==================================================
+
+  const [projects, setProjects] =
+    useState<Project[]>([]);
+
+  const [projectProgress, setProjectProgress] =
+    useState<ProjectProgress[]>([]);
+
+  const [projectsLoading, setProjectsLoading] =
+    useState(true);
 
   // ==================================================
   // BACKEND STATE
@@ -113,6 +141,49 @@ export default function Home() {
   };
 
   // ==================================================
+  // LOAD PROJECTS
+  // ==================================================
+
+  const loadProjects = async () => {
+    try {
+      setProjectsLoading(true);
+
+      const [
+        projectsResponse,
+        progressResponse,
+      ] = await Promise.all([
+        fetch(`${API_URL}/api/projects`),
+        fetch(`${API_URL}/api/projects-progress`),
+      ]);
+
+      if (!projectsResponse.ok) {
+        throw new Error(
+          "Failed to load projects"
+        );
+      }
+
+      if (!progressResponse.ok) {
+        throw new Error(
+          "Failed to load project progress"
+        );
+      }
+
+      const projectsData =
+        await projectsResponse.json();
+
+      const progressData =
+        await progressResponse.json();
+
+      setProjects(projectsData);
+      setProjectProgress(progressData);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
+  // ==================================================
   // CHECK BACKEND
   // ==================================================
 
@@ -135,6 +206,7 @@ export default function Home() {
   useEffect(() => {
     loadTasks();
     loadGoals();
+    loadProjects();
     checkBackend();
   }, []);
 
@@ -146,6 +218,7 @@ export default function Home() {
     if (activeMenu === "Dashboard") {
       loadTasks();
       loadGoals();
+      loadProjects();
     }
   }, [activeMenu]);
 
@@ -175,10 +248,13 @@ export default function Home() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to create task");
+        throw new Error(
+          "Failed to create task"
+        );
       }
 
-      const createdTask = await response.json();
+      const createdTask =
+        await response.json();
 
       setTasks((currentTasks) => [
         ...currentTasks,
@@ -196,7 +272,8 @@ export default function Home() {
   // ==================================================
 
   const toggleTask = async (task: Task) => {
-    const updatedCompleted = !task.completed;
+    const updatedCompleted =
+      !task.completed;
 
     setTasks((currentTasks) =>
       currentTasks.map((item) =>
@@ -224,10 +301,13 @@ export default function Home() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to update task");
+        throw new Error(
+          "Failed to update task"
+        );
       }
 
-      const updatedTask = await response.json();
+      const updatedTask =
+        await response.json();
 
       setTasks((currentTasks) =>
         currentTasks.map((item) =>
@@ -236,10 +316,13 @@ export default function Home() {
             : item
         )
       );
+
+      loadProjects();
     } catch (error) {
       console.error(error);
 
       loadTasks();
+      loadProjects();
     }
   };
 
@@ -273,7 +356,9 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [timerRunning]);
 
-  const minutes = Math.floor(timeLeft / 60)
+  const minutes = Math.floor(
+    timeLeft / 60
+  )
     .toString()
     .padStart(2, "0");
 
@@ -301,7 +386,9 @@ export default function Home() {
     tasks.length === 0
       ? 0
       : Math.round(
-          (completedTasks / tasks.length) * 100
+          (completedTasks /
+            tasks.length) *
+            100
         );
 
   // ==================================================
@@ -328,6 +415,68 @@ export default function Home() {
         );
 
   // ==================================================
+  // PROJECT STATISTICS
+  // ==================================================
+
+  const activeProjects =
+    projects.filter(
+      (project) =>
+        project.status === "Active"
+    ).length;
+
+  const completedProjects =
+    projects.filter(
+      (project) =>
+        project.status === "Completed"
+    ).length;
+
+  const overallProjectProgress =
+    projectProgress.length === 0
+      ? 0
+      : Math.round(
+          projectProgress.reduce(
+            (total, project) =>
+              total + project.progress,
+            0
+          ) / projectProgress.length
+        );
+
+  // ==================================================
+  // PROJECT HELPERS
+  // ==================================================
+
+  const getProjectProgress = (
+    projectId: number
+  ) => {
+    return (
+      projectProgress.find(
+        (item) =>
+          item.project_id === projectId
+      ) || {
+        project_id: projectId,
+        project_name: "",
+        total_tasks: 0,
+        completed_tasks: 0,
+        progress: 0,
+      }
+    );
+  };
+
+  const getProjectStatusClass = (
+    status: string
+  ) => {
+    if (status === "Completed") {
+      return "bg-green-400/10 text-green-400";
+    }
+
+    if (status === "Paused") {
+      return "bg-yellow-400/10 text-yellow-400";
+    }
+
+    return "bg-cyan-400/10 text-cyan-400";
+  };
+
+  // ==================================================
   // GOAL DATE FORMAT
   // ==================================================
 
@@ -340,7 +489,11 @@ export default function Home() {
 
     const parsedDate = new Date(date);
 
-    if (Number.isNaN(parsedDate.getTime())) {
+    if (
+      Number.isNaN(
+        parsedDate.getTime()
+      )
+    ) {
       return date;
     }
 
@@ -445,6 +598,38 @@ export default function Home() {
           </div>
 
           {/* ==================================================
+              PROJECT STATISTICS
+          ================================================== */}
+
+          <div className="mt-4 grid gap-4 md:grid-cols-4">
+
+            <StatCard
+              title="Total Projects"
+              value={projects.length}
+              description="All your projects"
+            />
+
+            <StatCard
+              title="Active Projects"
+              value={activeProjects}
+              description="Projects in progress"
+            />
+
+            <StatCard
+              title="Completed Projects"
+              value={completedProjects}
+              description="Projects finished"
+            />
+
+            <StatCard
+              title="Project Progress"
+              value={`${overallProjectProgress}%`}
+              description="Overall project progress"
+            />
+
+          </div>
+
+          {/* ==================================================
               GOAL STATISTICS
           ================================================== */}
 
@@ -475,6 +660,169 @@ export default function Home() {
             />
 
           </div>
+
+          {/* ==================================================
+              RECENT PROJECTS
+          ================================================== */}
+
+          <section className="mt-8">
+
+            <div className="mb-4 flex items-center justify-between">
+
+              <div>
+
+                <h2 className="text-2xl font-bold">
+                  Recent Projects
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Track your projects and their progress.
+                </p>
+
+              </div>
+
+              <button
+                onClick={() =>
+                  setActiveMenu("Projects")
+                }
+                className="text-sm font-medium text-cyan-400 transition hover:text-cyan-300"
+              >
+                View all
+              </button>
+
+            </div>
+
+            {projectsLoading ? (
+
+              <div className="rounded-2xl border border-white/10 bg-[#101827] p-8 text-center text-gray-500">
+                Loading projects...
+              </div>
+
+            ) : projects.length === 0 ? (
+
+              <div className="rounded-2xl border border-white/10 bg-[#101827] p-8 text-center">
+
+                <p className="text-gray-400">
+                  No projects yet.
+                </p>
+
+                <p className="mt-2 text-sm text-gray-600">
+                  Create your first project to start tracking progress.
+                </p>
+
+                <button
+                  onClick={() =>
+                    setActiveMenu("Projects")
+                  }
+                  className="mt-5 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-bold text-black transition hover:bg-cyan-300"
+                >
+                  Create Project
+                </button>
+
+              </div>
+
+            ) : (
+
+              <div className="grid gap-4 md:grid-cols-2">
+
+                {projects
+                  .slice(0, 4)
+                  .map((project) => {
+
+                    const progress =
+                      getProjectProgress(
+                        project.id
+                      );
+
+                    return (
+                      <div
+                        key={project.id}
+                        className="rounded-2xl border border-white/10 bg-[#101827] p-5 transition hover:border-cyan-400/20"
+                      >
+
+                        <div className="flex items-start justify-between gap-4">
+
+                          <div className="min-w-0">
+
+                            <h3 className="truncate font-bold">
+                              {project.name}
+                            </h3>
+
+                            <p className="mt-1 line-clamp-2 text-sm text-gray-500">
+                              {project.description ||
+                                "No description provided."}
+                            </p>
+
+                          </div>
+
+                          <span
+                            className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${getProjectStatusClass(
+                              project.status
+                            )}`}
+                          >
+                            {project.status}
+                          </span>
+
+                        </div>
+
+                        <div className="mt-5">
+
+                          <div className="mb-2 flex items-center justify-between">
+
+                            <span className="text-sm text-gray-400">
+                              Progress
+                            </span>
+
+                            <span className="text-sm font-semibold text-cyan-400">
+                              {progress.progress}%
+                            </span>
+
+                          </div>
+
+                          <div className="h-2 overflow-hidden rounded-full bg-white/10">
+
+                            <div
+                              className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+                              style={{
+                                width: `${progress.progress}%`,
+                              }}
+                            />
+
+                          </div>
+
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between">
+
+                          <span className="text-xs text-gray-500">
+                            {progress.completed_tasks}{" "}
+                            /{" "}
+                            {progress.total_tasks}{" "}
+                            tasks completed
+                          </span>
+
+                          <button
+                            onClick={() =>
+                              setActiveMenu(
+                                "Projects"
+                              )
+                            }
+                            className="text-xs font-medium text-cyan-400 transition hover:text-cyan-300"
+                          >
+                            Manage
+                          </button>
+
+                        </div>
+
+                      </div>
+                    );
+                  })}
+
+              </div>
+
+            )}
+
+          </section>
 
           {/* ==================================================
               RECENT GOALS
@@ -534,87 +882,91 @@ export default function Home() {
 
               <div className="grid gap-4 md:grid-cols-2">
 
-                {goals.slice(0, 4).map((goal) => (
+                {goals
+                  .slice(0, 4)
+                  .map((goal) => (
 
-                  <div
-                    key={goal.id}
-                    className="rounded-2xl border border-white/10 bg-[#101827] p-5 transition hover:border-cyan-400/20"
-                  >
+                    <div
+                      key={goal.id}
+                      className="rounded-2xl border border-white/10 bg-[#101827] p-5 transition hover:border-cyan-400/20"
+                    >
 
-                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start justify-between gap-4">
 
-                      <div className="min-w-0">
+                        <div className="min-w-0">
 
-                        <h3 className="truncate font-bold">
-                          {goal.title}
-                        </h3>
+                          <h3 className="truncate font-bold">
+                            {goal.title}
+                          </h3>
 
-                        <p className="mt-1 text-sm text-gray-500">
-                          {goal.category}
-                        </p>
+                          <p className="mt-1 text-sm text-gray-500">
+                            {goal.category}
+                          </p>
 
-                      </div>
+                        </div>
 
-                      <span
-                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${getGoalStatusClass(
-                          goal.status
-                        )}`}
-                      >
-                        {goal.status}
-                      </span>
-
-                    </div>
-
-                    <div className="mt-5">
-
-                      <div className="mb-2 flex items-center justify-between">
-
-                        <span className="text-sm text-gray-400">
-                          Progress
-                        </span>
-
-                        <span className="text-sm font-semibold text-cyan-400">
-                          {goal.progress}%
+                        <span
+                          className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${getGoalStatusClass(
+                            goal.status
+                          )}`}
+                        >
+                          {goal.status}
                         </span>
 
                       </div>
 
-                      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                      <div className="mt-5">
 
-                        <div
-                          className="h-full rounded-full bg-cyan-400 transition-all duration-500"
-                          style={{
-                            width: `${goal.progress}%`,
-                          }}
-                        />
+                        <div className="mb-2 flex items-center justify-between">
+
+                          <span className="text-sm text-gray-400">
+                            Progress
+                          </span>
+
+                          <span className="text-sm font-semibold text-cyan-400">
+                            {goal.progress}%
+                          </span>
+
+                        </div>
+
+                        <div className="h-2 overflow-hidden rounded-full bg-white/10">
+
+                          <div
+                            className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+                            style={{
+                              width: `${goal.progress}%`,
+                            }}
+                          />
+
+                        </div>
+
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between">
+
+                        <span className="text-xs text-gray-500">
+                          Target:{" "}
+                          {formatGoalDate(
+                            goal.target_date
+                          )}
+                        </span>
+
+                        <button
+                          onClick={() =>
+                            setActiveMenu(
+                              "Goals"
+                            )
+                          }
+                          className="text-xs font-medium text-cyan-400 hover:text-cyan-300"
+                        >
+                          Manage
+                        </button>
 
                       </div>
 
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between">
-
-                      <span className="text-xs text-gray-500">
-                        Target:{" "}
-                        {formatGoalDate(
-                          goal.target_date
-                        )}
-                      </span>
-
-                      <button
-                        onClick={() =>
-                          setActiveMenu("Goals")
-                        }
-                        className="text-xs font-medium text-cyan-400 hover:text-cyan-300"
-                      >
-                        Manage
-                      </button>
-
-                    </div>
-
-                  </div>
-
-                ))}
+                  ))}
 
               </div>
 
@@ -675,79 +1027,77 @@ export default function Home() {
 
                 <div className="space-y-4">
 
-                  {tasks.slice(0, 5).map((task) => {
+                  {tasks
+                    .slice(0, 5)
+                    .map((task) => {
 
-                    const priorityClass =
-                      task.priority === "High"
-                        ? "bg-red-400/10 text-red-400"
-                        : task.priority === "Medium"
-                        ? "bg-yellow-400/10 text-yellow-400"
-                        : "bg-green-400/10 text-green-400";
+                      const priorityClass =
+                        task.priority === "High"
+                          ? "bg-red-400/10 text-red-400"
+                          : task.priority ===
+                            "Medium"
+                          ? "bg-yellow-400/10 text-yellow-400"
+                          : "bg-green-400/10 text-green-400";
 
-                    return (
-
-                      <div
-                        key={task.id}
-                        className={`flex items-center gap-4 rounded-2xl border border-white/10 bg-[#101827] p-5 ${
-                          task.completed
-                            ? "opacity-60"
-                            : ""
-                        }`}
-                      >
-
-                        {/* CHECK BUTTON */}
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            toggleTask(task)
-                          }
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition ${
+                      return (
+                        <div
+                          key={task.id}
+                          className={`flex items-center gap-4 rounded-2xl border border-white/10 bg-[#101827] p-5 ${
                             task.completed
-                              ? "border-cyan-400 bg-cyan-400 text-black"
-                              : "border-gray-600 hover:border-cyan-400"
+                              ? "opacity-60"
+                              : ""
                           }`}
-                          aria-label={
-                            task.completed
-                              ? "Mark task as incomplete"
-                              : "Mark task as complete"
-                          }
                         >
-                          {task.completed && "✓"}
-                        </button>
 
-                        {/* TASK CONTENT */}
-
-                        <div className="min-w-0 flex-1">
-
-                          <h3
-                            className={`font-semibold ${
+                          <button
+                            type="button"
+                            onClick={() =>
+                              toggleTask(
+                                task
+                              )
+                            }
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition ${
                               task.completed
-                                ? "text-gray-500 line-through"
-                                : "text-white"
+                                ? "border-cyan-400 bg-cyan-400 text-black"
+                                : "border-gray-600 hover:border-cyan-400"
                             }`}
+                            aria-label={
+                              task.completed
+                                ? "Mark task as incomplete"
+                                : "Mark task as complete"
+                            }
                           >
-                            {task.title}
-                          </h3>
+                            {task.completed &&
+                              "✓"}
+                          </button>
 
-                          <p className="mt-1 text-sm text-gray-500">
-                            {task.category}
-                          </p>
+                          <div className="min-w-0 flex-1">
+
+                            <h3
+                              className={`font-semibold ${
+                                task.completed
+                                  ? "text-gray-500 line-through"
+                                  : "text-white"
+                              }`}
+                            >
+                              {task.title}
+                            </h3>
+
+                            <p className="mt-1 text-sm text-gray-500">
+                              {task.category}
+                            </p>
+
+                          </div>
+
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-medium ${priorityClass}`}
+                          >
+                            {task.priority}
+                          </span>
 
                         </div>
-
-                        {/* PRIORITY */}
-
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-medium ${priorityClass}`}
-                        >
-                          {task.priority}
-                        </span>
-
-                      </div>
-
-                    );
-                  })}
+                      );
+                    })}
 
                 </div>
 
@@ -761,10 +1111,14 @@ export default function Home() {
                   type="text"
                   value={newTask}
                   onChange={(event) =>
-                    setNewTask(event.target.value)
+                    setNewTask(
+                      event.target.value
+                    )
                   }
                   onKeyDown={(event) => {
-                    if (event.key === "Enter") {
+                    if (
+                      event.key === "Enter"
+                    ) {
                       addQuickTask();
                     }
                   }}
@@ -816,7 +1170,8 @@ export default function Home() {
                 <button
                   onClick={() =>
                     setTimerRunning(
-                      (current) => !current
+                      (current) =>
+                        !current
                     )
                   }
                   className="flex-1 rounded-xl bg-cyan-400 px-6 py-4 font-bold text-black hover:bg-cyan-300"
@@ -870,7 +1225,9 @@ export default function Home() {
 
               <button
                 onClick={() =>
-                  setActiveMenu("Projects")
+                  setActiveMenu(
+                    "Projects"
+                  )
                 }
                 className="rounded-2xl border border-white/10 bg-[#101827] p-6 text-left transition hover:border-cyan-400/30"
               >
