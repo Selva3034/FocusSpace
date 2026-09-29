@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import TaskManager from "./TaskManager";
 import ProjectsManager from "./ProjectsManager";
+import NotesManager from "./NotesManager";
+import GoalsManager from "./GoalsManager";
 
 type Task = {
   id: number;
@@ -12,17 +15,52 @@ type Task = {
   completed: boolean;
 };
 
+type Goal = {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  target_date: string | null;
+  progress: number;
+  status: "Active" | "Completed" | "Paused";
+};
+
+type ActiveMenu =
+  | "Dashboard"
+  | "Tasks"
+  | "Projects"
+  | "Notes"
+  | "Goals";
+
 const API_URL = "http://127.0.0.1:8000";
 
 export default function Home() {
-  const [activeMenu, setActiveMenu] = useState<
-    "Dashboard" | "Tasks" | "Projects"
-  >("Dashboard");
+  const [activeMenu, setActiveMenu] =
+    useState<ActiveMenu>("Dashboard");
+
+  // ==================================================
+  // TASK STATE
+  // ==================================================
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [backendOnline, setBackendOnline] = useState(false);
+  // ==================================================
+  // GOAL STATE
+  // ==================================================
+
+  const [goals, setGoals] = useState<Goal[]>([]);
+
+  // ==================================================
+  // BACKEND STATE
+  // ==================================================
+
+  const [backendOnline, setBackendOnline] =
+    useState(false);
+
+  // ==================================================
+  // QUICK TASK
+  // ==================================================
 
   const [newTask, setNewTask] = useState("");
 
@@ -53,6 +91,28 @@ export default function Home() {
   };
 
   // ==================================================
+  // LOAD GOALS
+  // ==================================================
+
+  const loadGoals = async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/goals`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load goals");
+      }
+
+      const data = await response.json();
+
+      setGoals(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // ==================================================
   // CHECK BACKEND
   // ==================================================
 
@@ -74,16 +134,18 @@ export default function Home() {
 
   useEffect(() => {
     loadTasks();
+    loadGoals();
     checkBackend();
   }, []);
 
   // ==================================================
-  // REFRESH TASKS WHEN DASHBOARD OPENS
+  // REFRESH DATA WHEN DASHBOARD OPENS
   // ==================================================
 
   useEffect(() => {
     if (activeMenu === "Dashboard") {
       loadTasks();
+      loadGoals();
     }
   }, [activeMenu]);
 
@@ -176,6 +238,7 @@ export default function Home() {
       );
     } catch (error) {
       console.error(error);
+
       loadTasks();
     }
   };
@@ -184,8 +247,11 @@ export default function Home() {
   // POMODORO
   // ==================================================
 
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
-  const [timerRunning, setTimerRunning] = useState(false);
+  const [timeLeft, setTimeLeft] =
+    useState(25 * 60);
+
+  const [timerRunning, setTimerRunning] =
+    useState(false);
 
   useEffect(() => {
     if (!timerRunning) {
@@ -196,6 +262,7 @@ export default function Home() {
       setTimeLeft((currentTime) => {
         if (currentTime <= 1) {
           setTimerRunning(false);
+
           return 25 * 60;
         }
 
@@ -220,7 +287,7 @@ export default function Home() {
   };
 
   // ==================================================
-  // STATISTICS
+  // TASK STATISTICS
   // ==================================================
 
   const completedTasks = tasks.filter(
@@ -238,15 +305,83 @@ export default function Home() {
         );
 
   // ==================================================
-  // SIDEBAR
+  // GOAL STATISTICS
   // ==================================================
 
-  const menuItems: Array<
-    "Dashboard" | "Tasks" | "Projects"
-  > = [
+  const activeGoals = goals.filter(
+    (goal) => goal.status === "Active"
+  ).length;
+
+  const completedGoals = goals.filter(
+    (goal) => goal.status === "Completed"
+  ).length;
+
+  const goalProgress =
+    goals.length === 0
+      ? 0
+      : Math.round(
+          goals.reduce(
+            (total, goal) =>
+              total + goal.progress,
+            0
+          ) / goals.length
+        );
+
+  // ==================================================
+  // GOAL DATE FORMAT
+  // ==================================================
+
+  const formatGoalDate = (
+    date: string | null
+  ) => {
+    if (!date) {
+      return "No target date";
+    }
+
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return date;
+    }
+
+    return parsedDate.toLocaleDateString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  };
+
+  // ==================================================
+  // GOAL STATUS STYLE
+  // ==================================================
+
+  const getGoalStatusClass = (
+    status: Goal["status"]
+  ) => {
+    if (status === "Completed") {
+      return "bg-green-400/10 text-green-400";
+    }
+
+    if (status === "Paused") {
+      return "bg-yellow-400/10 text-yellow-400";
+    }
+
+    return "bg-cyan-400/10 text-cyan-400";
+  };
+
+  // ==================================================
+  // SIDEBAR MENU
+  // ==================================================
+
+  const menuItems: ActiveMenu[] = [
     "Dashboard",
     "Tasks",
     "Projects",
+    "Notes",
+    "Goals",
   ];
 
   // ==================================================
@@ -256,9 +391,13 @@ export default function Home() {
   const renderDashboard = () => {
     return (
       <main className="min-h-screen bg-[#0b0f14] text-white">
+
         <div className="mx-auto max-w-7xl px-6 py-10">
 
+          {/* HEADER */}
+
           <div className="mb-8">
+
             <p className="text-sm text-gray-500">
               Welcome back
             </p>
@@ -270,9 +409,12 @@ export default function Home() {
             <p className="mt-2 text-sm text-gray-500">
               Manage your work, tasks and focus.
             </p>
+
           </div>
 
-          {/* STATS */}
+          {/* ==================================================
+              TASK STATISTICS
+          ================================================== */}
 
           <div className="grid gap-4 md:grid-cols-4">
 
@@ -302,17 +444,200 @@ export default function Home() {
 
           </div>
 
-          {/* MAIN DASHBOARD GRID */}
+          {/* ==================================================
+              GOAL STATISTICS
+          ================================================== */}
+
+          <div className="mt-4 grid gap-4 md:grid-cols-4">
+
+            <StatCard
+              title="Total Goals"
+              value={goals.length}
+              description="All your goals"
+            />
+
+            <StatCard
+              title="Active Goals"
+              value={activeGoals}
+              description="Goals in progress"
+            />
+
+            <StatCard
+              title="Completed Goals"
+              value={completedGoals}
+              description="Goals achieved"
+            />
+
+            <StatCard
+              title="Goal Progress"
+              value={`${goalProgress}%`}
+              description="Overall goal progress"
+            />
+
+          </div>
+
+          {/* ==================================================
+              RECENT GOALS
+          ================================================== */}
+
+          <section className="mt-8">
+
+            <div className="mb-4 flex items-center justify-between">
+
+              <div>
+
+                <h2 className="text-2xl font-bold">
+                  Recent Goals
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Track your latest goals and progress.
+                </p>
+
+              </div>
+
+              <button
+                onClick={() =>
+                  setActiveMenu("Goals")
+                }
+                className="text-sm font-medium text-cyan-400 transition hover:text-cyan-300"
+              >
+                View all
+              </button>
+
+            </div>
+
+            {goals.length === 0 ? (
+
+              <div className="rounded-2xl border border-white/10 bg-[#101827] p-8 text-center">
+
+                <p className="text-gray-400">
+                  No goals yet.
+                </p>
+
+                <p className="mt-2 text-sm text-gray-600">
+                  Create your first goal to start tracking progress.
+                </p>
+
+                <button
+                  onClick={() =>
+                    setActiveMenu("Goals")
+                  }
+                  className="mt-5 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-bold text-black transition hover:bg-cyan-300"
+                >
+                  Create Goal
+                </button>
+
+              </div>
+
+            ) : (
+
+              <div className="grid gap-4 md:grid-cols-2">
+
+                {goals.slice(0, 4).map((goal) => (
+
+                  <div
+                    key={goal.id}
+                    className="rounded-2xl border border-white/10 bg-[#101827] p-5 transition hover:border-cyan-400/20"
+                  >
+
+                    <div className="flex items-start justify-between gap-4">
+
+                      <div className="min-w-0">
+
+                        <h3 className="truncate font-bold">
+                          {goal.title}
+                        </h3>
+
+                        <p className="mt-1 text-sm text-gray-500">
+                          {goal.category}
+                        </p>
+
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${getGoalStatusClass(
+                          goal.status
+                        )}`}
+                      >
+                        {goal.status}
+                      </span>
+
+                    </div>
+
+                    <div className="mt-5">
+
+                      <div className="mb-2 flex items-center justify-between">
+
+                        <span className="text-sm text-gray-400">
+                          Progress
+                        </span>
+
+                        <span className="text-sm font-semibold text-cyan-400">
+                          {goal.progress}%
+                        </span>
+
+                      </div>
+
+                      <div className="h-2 overflow-hidden rounded-full bg-white/10">
+
+                        <div
+                          className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+                          style={{
+                            width: `${goal.progress}%`,
+                          }}
+                        />
+
+                      </div>
+
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between">
+
+                      <span className="text-xs text-gray-500">
+                        Target:{" "}
+                        {formatGoalDate(
+                          goal.target_date
+                        )}
+                      </span>
+
+                      <button
+                        onClick={() =>
+                          setActiveMenu("Goals")
+                        }
+                        className="text-xs font-medium text-cyan-400 hover:text-cyan-300"
+                      >
+                        Manage
+                      </button>
+
+                    </div>
+
+                  </div>
+
+                ))}
+
+              </div>
+
+            )}
+
+          </section>
+
+          {/* ==================================================
+              MAIN DASHBOARD GRID
+          ================================================== */}
 
           <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_380px]">
 
-            {/* TASKS */}
+            {/* ==================================================
+                TASKS
+            ================================================== */}
 
             <section>
 
               <div className="mb-4 flex items-center justify-between">
 
                 <div>
+
                   <h2 className="text-2xl font-bold">
                     Today's Tasks
                   </h2>
@@ -320,6 +645,7 @@ export default function Home() {
                   <p className="mt-1 text-sm text-gray-500">
                     Your current workload
                   </p>
+
                 </div>
 
                 <button
@@ -334,14 +660,19 @@ export default function Home() {
               </div>
 
               {loading ? (
+
                 <div className="rounded-2xl border border-white/10 bg-[#101827] p-8 text-center text-gray-500">
                   Loading tasks...
                 </div>
+
               ) : tasks.length === 0 ? (
+
                 <div className="rounded-2xl border border-white/10 bg-[#101827] p-8 text-center text-gray-500">
                   No tasks yet.
                 </div>
+
               ) : (
+
                 <div className="space-y-4">
 
                   {tasks.slice(0, 5).map((task) => {
@@ -354,6 +685,7 @@ export default function Home() {
                         : "bg-green-400/10 text-green-400";
 
                     return (
+
                       <div
                         key={task.id}
                         className={`flex items-center gap-4 rounded-2xl border border-white/10 bg-[#101827] p-5 ${
@@ -363,18 +695,28 @@ export default function Home() {
                         }`}
                       >
 
+                        {/* CHECK BUTTON */}
+
                         <button
+                          type="button"
                           onClick={() =>
                             toggleTask(task)
                           }
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition ${
                             task.completed
                               ? "border-cyan-400 bg-cyan-400 text-black"
                               : "border-gray-600 hover:border-cyan-400"
                           }`}
+                          aria-label={
+                            task.completed
+                              ? "Mark task as incomplete"
+                              : "Mark task as complete"
+                          }
                         >
                           {task.completed && "✓"}
                         </button>
+
+                        {/* TASK CONTENT */}
 
                         <div className="min-w-0 flex-1">
 
@@ -394,6 +736,8 @@ export default function Home() {
 
                         </div>
 
+                        {/* PRIORITY */}
+
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-medium ${priorityClass}`}
                         >
@@ -401,10 +745,12 @@ export default function Home() {
                         </span>
 
                       </div>
+
                     );
                   })}
 
                 </div>
+
               )}
 
               {/* QUICK ADD */}
@@ -437,7 +783,9 @@ export default function Home() {
 
             </section>
 
-            {/* POMODORO */}
+            {/* ==================================================
+                POMODORO
+            ================================================== */}
 
             <section className="rounded-3xl border border-white/10 bg-[#101827] p-6">
 
@@ -491,7 +839,9 @@ export default function Home() {
 
           </div>
 
-          {/* QUICK ACTIONS */}
+          {/* ==================================================
+              QUICK ACTIONS
+          ================================================== */}
 
           <section className="mt-10">
 
@@ -499,7 +849,7 @@ export default function Home() {
               Quick Actions
             </h2>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="mt-4 grid gap-4 md:grid-cols-4">
 
               <button
                 onClick={() =>
@@ -507,6 +857,7 @@ export default function Home() {
                 }
                 className="rounded-2xl border border-white/10 bg-[#101827] p-6 text-left transition hover:border-cyan-400/30"
               >
+
                 <p className="font-bold">
                   Manage Tasks
                 </p>
@@ -514,6 +865,7 @@ export default function Home() {
                 <p className="mt-2 text-sm text-gray-500">
                   Create and organize your tasks.
                 </p>
+
               </button>
 
               <button
@@ -522,6 +874,7 @@ export default function Home() {
                 }
                 className="rounded-2xl border border-white/10 bg-[#101827] p-6 text-left transition hover:border-cyan-400/30"
               >
+
                 <p className="font-bold">
                   Manage Projects
                 </p>
@@ -529,19 +882,41 @@ export default function Home() {
                 <p className="mt-2 text-sm text-gray-500">
                   Track your projects and progress.
                 </p>
+
               </button>
 
               <button
-                onClick={() => setTimerRunning(true)}
+                onClick={() =>
+                  setActiveMenu("Notes")
+                }
                 className="rounded-2xl border border-white/10 bg-[#101827] p-6 text-left transition hover:border-cyan-400/30"
               >
+
                 <p className="font-bold">
-                  Start Focus
+                  Manage Notes
                 </p>
 
                 <p className="mt-2 text-sm text-gray-500">
-                  Start a 25-minute focus session.
+                  Create and organize your notes.
                 </p>
+
+              </button>
+
+              <button
+                onClick={() =>
+                  setActiveMenu("Goals")
+                }
+                className="rounded-2xl border border-white/10 bg-[#101827] p-6 text-left transition hover:border-cyan-400/30"
+              >
+
+                <p className="font-bold">
+                  Manage Goals
+                </p>
+
+                <p className="mt-2 text-sm text-gray-500">
+                  Set goals and track your progress.
+                </p>
+
               </button>
 
             </div>
@@ -549,6 +924,7 @@ export default function Home() {
           </section>
 
         </div>
+
       </main>
     );
   };
@@ -560,16 +936,21 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#0b0f14] text-white">
 
-      {/* SIDEBAR */}
+      {/* ==================================================
+          SIDEBAR
+      ================================================== */}
 
-      <aside className="fixed left-0 top-0 z-20 hidden h-screen w-68 border-r border-white/10 bg-[#0d131c] lg:block">
+      <aside className="fixed left-0 top-0 z-20 hidden h-screen w-64 border-r border-white/10 bg-[#0d131c] lg:block">
 
         <div className="p-6">
 
           <h1 className="text-2xl font-bold">
-            Focus<span className="text-cyan-400">
+
+            Focus
+            <span className="text-cyan-400">
               Space
             </span>
+
           </h1>
 
           <p className="mt-1 text-sm text-gray-500">
@@ -600,6 +981,8 @@ export default function Home() {
 
         </nav>
 
+        {/* SYSTEM STATUS */}
+
         <div className="absolute bottom-8 left-6 right-6 border-t border-white/10 pt-6">
 
           <p className="text-xs uppercase tracking-wider text-gray-600">
@@ -626,9 +1009,37 @@ export default function Home() {
 
       </aside>
 
-      {/* CONTENT */}
+      {/* ==================================================
+          MOBILE NAVIGATION
+      ================================================== */}
 
-      <div className="lg:pl-68">
+      <div className="flex gap-2 overflow-x-auto border-b border-white/10 bg-[#0d131c] p-4 lg:hidden">
+
+        {menuItems.map((item) => (
+
+          <button
+            key={item}
+            onClick={() =>
+              setActiveMenu(item)
+            }
+            className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm transition ${
+              activeMenu === item
+                ? "bg-cyan-400 text-black"
+                : "bg-white/5 text-gray-400"
+            }`}
+          >
+            {item}
+          </button>
+
+        ))}
+
+      </div>
+
+      {/* ==================================================
+          CONTENT
+      ================================================== */}
+
+      <div className="lg:pl-64">
 
         {activeMenu === "Dashboard" && (
           renderDashboard()
@@ -640,6 +1051,14 @@ export default function Home() {
 
         {activeMenu === "Projects" && (
           <ProjectsManager />
+        )}
+
+        {activeMenu === "Notes" && (
+          <NotesManager />
+        )}
+
+        {activeMenu === "Goals" && (
+          <GoalsManager />
         )}
 
       </div>
