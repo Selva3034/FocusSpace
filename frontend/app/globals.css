@@ -1,26 +1,442 @@
+/* =========================
+   FOCUSSPACE GLOBAL STYLES
+   Phase 9.6 - Responsive Polish
+========================= */
+
 @import "tailwindcss";
 
+/* =========================
+   ROOT
+========================= */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #070b14;
+  --foreground: #ffffff;
+  --card: #0d121d;
+  --border: rgba(255, 255, 255, 0.08);
+  --muted: #6b7280;
+  --accent: #22d3ee;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body {
+  min-height: 100%;
 }
 
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+  overflow-x: hidden;
+}
+
+/* =========================
+   SELECTION
+========================= */
+
+::selection {
+  background: rgba(34, 211, 238, 0.25);
+  color: white;
+}
+
+/* =========================
+   SCROLLBAR
+========================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070b14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.35);
+}
+
+/* Firefox */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color:
+    rgba(255, 255, 255, 0.12)
+    #070b14;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.7);
+  outline-offset: 2px;
+}
+
+/* =========================
+   INPUTS
+========================= */
+
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #4b5563;
+}
+
+select {
+  color-scheme: dark;
+}
+
+/* =========================
+   SKELETON ANIMATION
+========================= */
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.animate-pulse {
+  animation:
+    skeleton-pulse 1.6s
+    ease-in-out infinite;
+}
+
+/* =========================
+   TOAST ANIMATION
+========================= */
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px)
+      scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0)
+      scale(1);
+  }
+}
+
+.toast-enter {
+  animation:
+    toast-enter 0.25s
+    ease-out;
+}
+
+/* =========================
+   CARD HOVER
+========================= */
+
+.focus-card {
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.focus-card:hover {
+  transform: translateY(-1px);
+}
+
+/* =========================
+   MOBILE SAFE AREA
+========================= */
+
+.safe-bottom {
+  padding-bottom:
+    max(1rem, env(safe-area-inset-bottom));
+}
+
+.safe-top {
+  padding-top:
+    max(1rem, env(safe-area-inset-top));
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 1023px) {
+  body {
+    min-width: 0;
+  }
+
+  main {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* =========================
+   TABLET
+========================= */
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .tablet-full-width {
+    width: 100%;
+  }
+}
+
+/* =========================
+   SMALL MOBILE
+========================= */
+
+@media (max-width: 639px) {
+  html {
+    font-size: 15px;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+  }
+
+  /* Prevent very long text
+     from breaking cards */
+
+  h1,
+  h2,
+  h3,
+  h4,
+  p {
+    overflow-wrap: anywhere;
+  }
+
+  /* Improve touch targets */
+
+  button {
+    min-height: 40px;
+  }
+
+  /* Search input */
+
+  input {
+    min-width: 0;
+  }
+
+  /* Smaller scrollbar */
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+}
+
+/* =========================
+   EXTRA SMALL DEVICES
+========================= */
+
+@media (max-width: 380px) {
+  html {
+    font-size: 14px;
+  }
+
+  button {
+    min-height: 38px;
+  }
+}
+
+/* =========================
+   LANDSCAPE MOBILE
+========================= */
+
+@media (
+  max-width: 900px
+) and (orientation: landscape) {
+  .mobile-landscape-compact {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+}
+
+/* =========================
+   REDUCED MOTION
+========================= */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================
+   MOBILE HORIZONTAL SCROLL
+========================= */
+
+.mobile-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.mobile-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* =========================
+   TEXT UTILITIES
+========================= */
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.text-pretty {
+  text-wrap: pretty;
+}
+
+/* =========================
+   GRADIENT TEXT
+========================= */
+
+.gradient-text {
+  background: linear-gradient(
+    90deg,
+    #22d3ee,
+    #38bdf8
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* =========================
+   GLOW
+========================= */
+
+.cyan-glow {
+  box-shadow:
+    0 0 25px
+    rgba(34, 211, 238, 0.08);
+}
+
+/* =========================
+   MOBILE CARD IMPROVEMENTS
+========================= */
+
+@media (max-width: 639px) {
+  .rounded-3xl {
+    border-radius: 1.25rem;
+  }
+
+  .rounded-2xl {
+    border-radius: 1rem;
+  }
+}
+
+/* =========================
+   MOBILE MODAL SUPPORT
+========================= */
+
+.mobile-modal {
+  width: min(
+    calc(100% - 2rem),
+    32rem
+  );
+  max-height: calc(
+    100dvh - 2rem
+  );
+  overflow-y: auto;
+}
+
+/* =========================
+   PREVENT LAYOUT SHIFT
+========================= */
+
+img,
+svg,
+video {
+  max-width: 100%;
+}
+
+/* =========================
+   LINKS
+========================= */
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* =========================
+   DISABLED ELEMENTS
+========================= */
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* =========================
+   MOBILE TOAST
+========================= */
+
+@media (max-width: 639px) {
+  .toast-mobile {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    width: auto;
+    max-width: none;
+  }
 }
