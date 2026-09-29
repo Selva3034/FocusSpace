@@ -96,6 +96,42 @@ type Toast = {
 };
 
 /* =========================
+   NAVIGATION ITEMS
+========================= */
+
+const navigationItems: {
+  name: ActiveMenu;
+  icon: string;
+  description: string;
+}[] = [
+  {
+    name: "Dashboard",
+    icon: "⌂",
+    description: "Overview",
+  },
+  {
+    name: "Tasks",
+    icon: "✓",
+    description: "Your tasks",
+  },
+  {
+    name: "Projects",
+    icon: "▣",
+    description: "Workspaces",
+  },
+  {
+    name: "Notes",
+    icon: "✎",
+    description: "Your notes",
+  },
+  {
+    name: "Goals",
+    icon: "◎",
+    description: "Track goals",
+  },
+];
+
+/* =========================
    MAIN COMPONENT
 ========================= */
 
@@ -153,7 +189,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] =
     useState("");
 
-  /* TOASTS */
+  /* TOAST */
 
   const [toasts, setToasts] =
     useState<Toast[]>([]);
@@ -209,7 +245,9 @@ export default function Home() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to load tasks");
+        throw new Error(
+          "Failed to load tasks"
+        );
       }
 
       const data = await response.json();
@@ -235,7 +273,9 @@ export default function Home() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to load goals");
+        throw new Error(
+          "Failed to load goals"
+        );
       }
 
       const data = await response.json();
@@ -303,7 +343,9 @@ export default function Home() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to load notes");
+        throw new Error(
+          "Failed to load notes"
+        );
       }
 
       const data = await response.json();
@@ -317,7 +359,7 @@ export default function Home() {
   };
 
   /* =========================
-     BACKEND CHECK
+     BACKEND
   ========================= */
 
   const checkBackend = async () => {
@@ -345,7 +387,7 @@ export default function Home() {
   }, []);
 
   /* =========================
-     REFRESH DASHBOARD
+     DASHBOARD REFRESH
   ========================= */
 
   useEffect(() => {
@@ -598,7 +640,7 @@ export default function Home() {
   };
 
   /* =========================
-     FILTER + SORT
+     TASK FILTER + SORT
   ========================= */
 
   const filteredAndSortedTasks =
@@ -707,11 +749,11 @@ export default function Home() {
   };
 
   /* =========================
-     SEARCH
+     GLOBAL SEARCH
   ========================= */
 
   const searchResults =
-    useMemo(() => {
+    useMemo<SearchResult[]>(() => {
       const query =
         searchQuery
           .trim()
@@ -830,6 +872,10 @@ export default function Home() {
       goals,
     ]);
 
+  /* =========================
+     SEARCH NAVIGATION
+  ========================= */
+
   const openSearchResult = (
     result: SearchResult
   ) => {
@@ -911,6 +957,7 @@ export default function Home() {
     menu: ActiveMenu
   ) => {
     setActiveMenu(menu);
+    setSearchQuery("");
   };
 
   /* =========================
@@ -920,102 +967,254 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#070b14] text-white">
 
-      {/* DESKTOP SIDEBAR */}
+      {/* =========================
+          DESKTOP SIDEBAR
+      ========================= */}
 
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 border-r border-white/10 bg-[#0a0f1c] lg:block">
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-72 border-r border-white/10 bg-[#0a0f1c] lg:block">
 
         <div className="flex h-full flex-col">
 
-          <div className="flex items-center gap-3 border-b border-white/10 px-6 py-6">
+          {/* BRAND */}
 
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400 font-black text-black">
-              F
-            </div>
+          <div className="border-b border-white/10 px-5 py-6">
 
-            <div>
-              <h1 className="text-lg font-bold">
-                FocusSpace
-              </h1>
+            <div className="flex items-center gap-3">
 
-              <p className="text-xs text-gray-500">
-                Digital Workspace
-              </p>
+              <div className="relative">
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-400 font-black text-black shadow-lg shadow-cyan-400/10">
+                  F
+                </div>
+
+                <div className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-[#0a0f1c] bg-green-400" />
+
+              </div>
+
+              <div className="min-w-0">
+
+                <h1 className="truncate text-lg font-black tracking-tight">
+                  FocusSpace
+                </h1>
+
+                <p className="text-xs text-gray-500">
+                  Digital Workspace
+                </p>
+
+              </div>
+
             </div>
 
           </div>
 
-          <nav className="flex-1 space-y-2 p-4">
+          {/* WORKSPACE */}
 
-            {(
-              [
-                "Dashboard",
-                "Tasks",
-                "Projects",
-                "Notes",
-                "Goals",
-              ] as ActiveMenu[]
-            ).map((menu) => (
+          <div className="px-4 pt-5">
 
-              <button
-                key={menu}
-                onClick={() =>
-                  handleNavigation(menu)
+            <div className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2.5">
+
+              <div className="flex min-w-0 items-center gap-2">
+
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10 text-xs font-bold text-cyan-400">
+                  S
+                </div>
+
+                <div className="min-w-0">
+
+                  <p className="truncate text-xs font-semibold text-gray-300">
+                    Personal Space
+                  </p>
+
+                  <p className="text-[9px] text-gray-600">
+                    Workspace
+                  </p>
+
+                </div>
+
+              </div>
+
+              <span className="text-xs text-gray-600">
+                ⋮
+              </span>
+
+            </div>
+
+          </div>
+
+          {/* NAVIGATION */}
+
+          <nav className="flex-1 overflow-y-auto px-4 py-6">
+
+            <p className="mb-3 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-600">
+              Workspace
+            </p>
+
+            <div className="space-y-1.5">
+
+              {navigationItems.map(
+                (item) => {
+
+                  const active =
+                    activeMenu ===
+                    item.name;
+
+                  return (
+                    <button
+                      key={item.name}
+                      onClick={() =>
+                        handleNavigation(
+                          item.name
+                        )
+                      }
+                      className={`group relative flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all duration-200 ${
+                        active
+                          ? "bg-cyan-400 text-black shadow-lg shadow-cyan-400/10"
+                          : "text-gray-400 hover:bg-white/[0.05] hover:text-white"
+                      }`}
+                    >
+
+                      {active && (
+                        <span className="absolute -left-4 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-cyan-400" />
+                      )}
+
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold transition ${
+                          active
+                            ? "bg-black/10"
+                            : "bg-white/5 text-gray-500 group-hover:bg-white/10 group-hover:text-cyan-400"
+                        }`}
+                      >
+                        {item.icon}
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+
+                        <p className="text-sm font-semibold">
+                          {item.name}
+                        </p>
+
+                        <p
+                          className={`mt-0.5 text-[10px] ${
+                            active
+                              ? "text-black/60"
+                              : "text-gray-600 group-hover:text-gray-500"
+                          }`}
+                        >
+                          {
+                            item.description
+                          }
+                        </p>
+
+                      </div>
+
+                      {item.name ===
+                        "Tasks" &&
+                        pendingTasks >
+                          0 && (
+                          <span
+                            className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[9px] font-bold ${
+                              active
+                                ? "bg-black/10 text-black"
+                                : "bg-cyan-400/10 text-cyan-400"
+                            }`}
+                          >
+                            {
+                              pendingTasks
+                            }
+                          </span>
+                        )}
+
+                      {item.name ===
+                        "Goals" &&
+                        activeGoals >
+                          0 && (
+                          <span
+                            className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[9px] font-bold ${
+                              active
+                                ? "bg-black/10 text-black"
+                                : "bg-cyan-400/10 text-cyan-400"
+                            }`}
+                          >
+                            {
+                              activeGoals
+                            }
+                          </span>
+                        )}
+
+                    </button>
+                  );
                 }
-                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                  activeMenu === menu
-                    ? "bg-cyan-400 text-black"
-                    : "text-gray-400 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <span>
-                  {menu === "Dashboard" &&
-                    "⌂"}
+              )}
 
-                  {menu === "Tasks" &&
-                    "✓"}
-
-                  {menu === "Projects" &&
-                    "▣"}
-
-                  {menu === "Notes" &&
-                    "✎"}
-
-                  {menu === "Goals" &&
-                    "◎"}
-                </span>
-
-                {menu}
-              </button>
-
-            ))}
+            </div>
 
           </nav>
 
-          <div className="border-t border-white/10 p-4">
+          {/* BOTTOM SIDEBAR */}
 
-            <div className="rounded-xl bg-white/5 p-4">
+          <div className="space-y-3 border-t border-white/10 p-4">
 
-              <div className="flex items-center gap-2">
+            {/* BACKEND STATUS */}
+
+            <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3">
+
+              <div className="flex items-center justify-between">
+
+                <div className="flex items-center gap-2">
+
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      backendOnline
+                        ? "bg-green-400 shadow-lg shadow-green-400/30"
+                        : "bg-red-400 shadow-lg shadow-red-400/30"
+                    }`}
+                  />
+
+                  <span className="text-[10px] font-medium text-gray-500">
+                    Backend
+                  </span>
+
+                </div>
 
                 <span
-                  className={`h-2.5 w-2.5 rounded-full ${
+                  className={`text-[9px] font-semibold ${
                     backendOnline
-                      ? "bg-green-400"
-                      : "bg-red-400"
+                      ? "text-green-400"
+                      : "text-red-400"
                   }`}
-                />
-
-                <span className="text-xs text-gray-400">
-                  Backend
+                >
+                  {backendOnline
+                    ? "ONLINE"
+                    : "OFFLINE"}
                 </span>
 
               </div>
 
-              <p className="mt-2 text-sm font-medium">
-                {backendOnline
-                  ? "Connected"
-                  : "Offline"}
-              </p>
+            </div>
+
+            {/* PROFILE */}
+
+            <div className="flex items-center gap-3 rounded-2xl bg-white/[0.03] p-3">
+
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 text-xs font-black text-black">
+                S
+              </div>
+
+              <div className="min-w-0 flex-1">
+
+                <p className="truncate text-xs font-semibold text-gray-300">
+                  Developer
+                </p>
+
+                <p className="truncate text-[9px] text-gray-600">
+                  FocusSpace User
+                </p>
+
+              </div>
+
+              <span className="text-xs text-gray-600">
+                ⋮
+              </span>
 
             </div>
 
@@ -1025,69 +1224,129 @@ export default function Home() {
 
       </aside>
 
-      {/* MOBILE HEADER */}
+      {/* =========================
+          MOBILE HEADER
+      ========================= */}
 
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-white/10 bg-[#070b14]/95 px-4 py-4 backdrop-blur-xl lg:hidden">
+      <div className="sticky top-0 z-40 border-b border-white/10 bg-[#070b14]/95 backdrop-blur-xl lg:hidden">
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-4 py-3">
 
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-400 font-black text-black">
-            F
+          <div className="flex items-center gap-3">
+
+            <div className="relative">
+
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-400 font-black text-black">
+                F
+              </div>
+
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#070b14] bg-green-400" />
+
+            </div>
+
+            <div>
+
+              <p className="text-sm font-bold">
+                FocusSpace
+              </p>
+
+              <p className="text-[9px] text-gray-600">
+                Digital Workspace
+              </p>
+
+            </div>
+
           </div>
 
-          <span className="font-bold">
-            FocusSpace
-          </span>
+          <div className="flex items-center gap-2">
 
-        </div>
-
-        <div
-          className={`h-2.5 w-2.5 rounded-full ${
-            backendOnline
-              ? "bg-green-400"
-              : "bg-red-400"
-          }`}
-        />
-
-      </div>
-
-      {/* MOBILE NAV */}
-
-      <div className="sticky top-[69px] z-20 overflow-x-auto border-b border-white/10 bg-[#070b14] lg:hidden">
-
-        <div className="flex min-w-max gap-2 p-3">
-
-          {(
-            [
-              "Dashboard",
-              "Tasks",
-              "Projects",
-              "Notes",
-              "Goals",
-            ] as ActiveMenu[]
-          ).map((menu) => (
-
-            <button
-              key={menu}
-              onClick={() =>
-                handleNavigation(menu)
-              }
-              className={`rounded-xl px-4 py-2 text-xs font-medium ${
-                activeMenu === menu
-                  ? "bg-cyan-400 text-black"
-                  : "bg-white/5 text-gray-400"
+            <span
+              className={`h-2 w-2 rounded-full ${
+                backendOnline
+                  ? "bg-green-400"
+                  : "bg-red-400"
               }`}
-            >
-              {menu}
-            </button>
+            />
 
-          ))}
+            <span className="text-[9px] text-gray-500">
+              {backendOnline
+                ? "Online"
+                : "Offline"}
+            </span>
+
+          </div>
 
         </div>
 
       </div>
 
-      {/* TOASTS */}
+      {/* =========================
+          MOBILE NAVIGATION
+      ========================= */}
+
+      <div className="sticky top-[65px] z-30 overflow-x-auto border-b border-white/10 bg-[#070b14]/95 backdrop-blur-xl lg:hidden">
+
+        <div className="flex min-w-max gap-2 px-4 py-3">
+
+          {navigationItems.map(
+            (item) => {
+
+              const active =
+                activeMenu ===
+                item.name;
+
+              return (
+                <button
+                  key={item.name}
+                  onClick={() =>
+                    handleNavigation(
+                      item.name
+                    )
+                  }
+                  className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${
+                    active
+                      ? "bg-cyan-400 text-black"
+                      : "bg-white/5 text-gray-500 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+
+                  <span>
+                    {item.icon}
+                  </span>
+
+                  <span>
+                    {item.name}
+                  </span>
+
+                  {item.name ===
+                    "Tasks" &&
+                    pendingTasks >
+                      0 && (
+                      <span
+                        className={`rounded-full px-1.5 py-0.5 text-[8px] ${
+                          active
+                            ? "bg-black/10"
+                            : "bg-cyan-400/10 text-cyan-400"
+                        }`}
+                      >
+                        {
+                          pendingTasks
+                        }
+                      </span>
+                    )}
+
+                </button>
+              );
+            }
+          )}
+
+        </div>
+
+      </div>
+
+      {/* =========================
+          TOASTS
+      ========================= */}
 
       <div className="fixed bottom-6 right-6 z-[100] flex w-[calc(100%-3rem)] max-w-sm flex-col gap-3">
 
@@ -1160,9 +1419,11 @@ export default function Home() {
 
       </div>
 
-      {/* MAIN */}
+      {/* =========================
+          MAIN CONTENT
+      ========================= */}
 
-      <div className="lg:pl-64">
+      <div className="lg:pl-72">
 
         <main className="min-h-screen p-4 sm:p-6 lg:p-8">
 
@@ -1170,7 +1431,8 @@ export default function Home() {
               DASHBOARD
           ========================= */}
 
-          {activeMenu === "Dashboard" && (
+          {activeMenu ===
+            "Dashboard" && (
 
             <div className="mx-auto max-w-7xl">
 
@@ -1182,7 +1444,7 @@ export default function Home() {
 
                   <div>
 
-                    <p className="mb-2 text-sm text-cyan-400">
+                    <p className="mb-2 text-sm font-medium text-cyan-400">
                       Welcome back
                     </p>
 
@@ -1201,7 +1463,7 @@ export default function Home() {
 
                   <div className="relative w-full max-w-md">
 
-                    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 transition focus-within:border-cyan-400/30">
 
                       <span className="text-gray-500">
                         ⌕
@@ -1214,7 +1476,7 @@ export default function Home() {
                             event.target.value
                           )
                         }
-                        placeholder="Search tasks, projects, notes, goals..."
+                        placeholder="Search everything..."
                         className="w-full bg-transparent text-sm text-white outline-none placeholder:text-gray-600"
                       />
 
@@ -1290,7 +1552,6 @@ export default function Home() {
                           )}
 
                         </div>
-
                       )}
 
                     {searchQuery &&
@@ -1304,7 +1565,6 @@ export default function Home() {
                           </p>
 
                         </div>
-
                       )}
 
                   </div>
@@ -1375,7 +1635,8 @@ export default function Home() {
                     }
                     onKeyDown={(event) => {
                       if (
-                        event.key === "Enter"
+                        event.key ===
+                        "Enter"
                       ) {
                         handleCreateTask();
                       }
@@ -1438,6 +1699,8 @@ export default function Home() {
 
                     </div>
 
+                    {/* FILTERS */}
+
                     <div className="flex gap-2 overflow-x-auto pb-1">
 
                       {(
@@ -1449,28 +1712,32 @@ export default function Home() {
                           "Medium",
                           "Low",
                         ] as TaskFilter[]
-                      ).map((filter) => (
+                      ).map(
+                        (filter) => (
 
-                        <button
-                          key={filter}
-                          onClick={() =>
-                            setTaskFilter(
+                          <button
+                            key={filter}
+                            onClick={() =>
+                              setTaskFilter(
+                                filter
+                              )
+                            }
+                            className={`whitespace-nowrap rounded-xl px-3 py-2 text-xs font-medium transition ${
+                              taskFilter ===
                               filter
-                            )
-                          }
-                          className={`whitespace-nowrap rounded-xl px-3 py-2 text-xs font-medium transition ${
-                            taskFilter ===
-                            filter
-                              ? "bg-cyan-400 text-black"
-                              : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
-                          }`}
-                        >
-                          {filter}
-                        </button>
+                                ? "bg-cyan-400 text-black"
+                                : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                            }`}
+                          >
+                            {filter}
+                          </button>
 
-                      ))}
+                        )
+                      )}
 
                     </div>
+
+                    {/* SORT */}
 
                     <div className="flex items-center justify-between">
 
@@ -1511,7 +1778,7 @@ export default function Home() {
 
                   </div>
 
-                  {/* TASK SKELETON */}
+                  {/* TASK LOADING */}
 
                   {tasksLoading ? (
 
@@ -1553,102 +1820,105 @@ export default function Home() {
 
                       {filteredAndSortedTasks
                         .slice(0, 10)
-                        .map((task) => (
+                        .map(
+                          (task) => (
 
-                          <div
-                            key={task.id}
-                            className="group flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-3 transition hover:border-white/10 hover:bg-white/[0.04]"
-                          >
-
-                            <button
-                              onClick={() =>
-                                toggleTask(
-                                  task
-                                )
-                              }
-                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-xs transition ${
-                                task.completed
-                                  ? "border-green-400 bg-green-400 text-black"
-                                  : "border-gray-600 hover:border-cyan-400"
-                              }`}
+                            <div
+                              key={task.id}
+                              className="group flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-3 transition hover:border-white/10 hover:bg-white/[0.04]"
                             >
-                              {task.completed
-                                ? "✓"
-                                : ""}
-                            </button>
 
-                            <div className="min-w-0 flex-1">
-
-                              <p
-                                className={`truncate text-sm font-medium ${
+                              <button
+                                onClick={() =>
+                                  toggleTask(
+                                    task
+                                  )
+                                }
+                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-xs transition ${
                                   task.completed
-                                    ? "text-gray-600 line-through"
-                                    : "text-gray-200"
+                                    ? "border-green-400 bg-green-400 text-black"
+                                    : "border-gray-600 hover:border-cyan-400"
                                 }`}
                               >
-                                {task.title}
-                              </p>
+                                {task.completed
+                                  ? "✓"
+                                  : ""}
+                              </button>
 
-                              <div className="mt-1 flex flex-wrap items-center gap-2">
+                              <div className="min-w-0 flex-1">
 
-                                <span className="text-[10px] text-gray-600">
+                                <p
+                                  className={`truncate text-sm font-medium ${
+                                    task.completed
+                                      ? "text-gray-600 line-through"
+                                      : "text-gray-200"
+                                  }`}
+                                >
                                   {
-                                    task.category
+                                    task.title
                                   }
-                                </span>
+                                </p>
 
-                                <span className="text-[10px] text-gray-700">
-                                  •
-                                </span>
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
 
-                                <span className="text-[10px] text-gray-600">
-                                  {getProjectName(
-                                    task.project_id
-                                  )}
-                                </span>
+                                  <span className="text-[10px] text-gray-600">
+                                    {
+                                      task.category
+                                    }
+                                  </span>
+
+                                  <span className="text-[10px] text-gray-700">
+                                    •
+                                  </span>
+
+                                  <span className="text-[10px] text-gray-600">
+                                    {getProjectName(
+                                      task.project_id
+                                    )}
+                                  </span>
+
+                                </div>
 
                               </div>
 
+                              <span
+                                className={`hidden rounded-lg px-2 py-1 text-[10px] font-semibold sm:block ${
+                                  task.priority ===
+                                  "High"
+                                    ? "bg-red-400/10 text-red-400"
+                                    : task.priority ===
+                                      "Medium"
+                                    ? "bg-yellow-400/10 text-yellow-400"
+                                    : "bg-green-400/10 text-green-400"
+                                }`}
+                              >
+                                {
+                                  task.priority
+                                }
+                              </span>
+
+                              <button
+                                onClick={() =>
+                                  deleteTask(
+                                    task
+                                  )
+                                }
+                                className="text-xs text-gray-700 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
+                              >
+                                ✕
+                              </button>
+
                             </div>
 
-                            <span
-                              className={`hidden rounded-lg px-2 py-1 text-[10px] font-semibold sm:block ${
-                                task.priority ===
-                                "High"
-                                  ? "bg-red-400/10 text-red-400"
-                                  : task.priority ===
-                                    "Medium"
-                                  ? "bg-yellow-400/10 text-yellow-400"
-                                  : "bg-green-400/10 text-green-400"
-                              }`}
-                            >
-                              {
-                                task.priority
-                              }
-                            </span>
-
-                            <button
-                              onClick={() =>
-                                deleteTask(
-                                  task
-                                )
-                              }
-                              className="text-xs text-gray-700 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
-                            >
-                              ✕
-                            </button>
-
-                          </div>
-
-                        ))}
+                          )
+                        )}
 
                     </div>
-
                   )}
 
                 </section>
 
-                {/* RIGHT */}
+                {/* RIGHT COLUMN */}
 
                 <div className="space-y-6">
 
@@ -1827,11 +2097,10 @@ export default function Home() {
 
                   </div>
 
-                ) : projects.length === 0 ? (
+                ) : projects.length ===
+                  0 ? (
 
-                  <EmptyState
-                    text="No projects yet."
-                  />
+                  <EmptyState text="No projects yet." />
 
                 ) : (
 
@@ -1839,74 +2108,77 @@ export default function Home() {
 
                     {projects
                       .slice(0, 6)
-                      .map((project) => {
+                      .map(
+                        (project) => {
 
-                        const progress =
-                          getProjectProgress(
-                            project.id
-                          );
+                          const progress =
+                            getProjectProgress(
+                              project.id
+                            );
 
-                        return (
-                          <div
-                            key={project.id}
-                            className="rounded-2xl border border-white/5 bg-white/[0.02] p-4"
-                          >
+                          return (
+                            <div
+                              key={
+                                project.id
+                              }
+                              className="rounded-2xl border border-white/5 bg-white/[0.02] p-4"
+                            >
 
-                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start justify-between gap-3">
 
-                              <div className="min-w-0">
+                                <div className="min-w-0">
 
-                                <h3 className="truncate text-sm font-semibold">
+                                  <h3 className="truncate text-sm font-semibold">
+                                    {
+                                      project.name
+                                    }
+                                  </h3>
+
+                                  <p className="mt-1 line-clamp-2 text-xs text-gray-600">
+                                    {
+                                      project.description
+                                    }
+                                  </p>
+
+                                </div>
+
+                                <span className="rounded-lg bg-cyan-400/10 px-2 py-1 text-[10px] text-cyan-400">
                                   {
-                                    project.name
+                                    progress.progress
                                   }
-                                </h3>
-
-                                <p className="mt-1 line-clamp-2 text-xs text-gray-600">
-                                  {
-                                    project.description
-                                  }
-                                </p>
+                                  %
+                                </span>
 
                               </div>
 
-                              <span className="rounded-lg bg-cyan-400/10 px-2 py-1 text-[10px] text-cyan-400">
+                              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
+
+                                <div
+                                  className="h-full rounded-full bg-cyan-400 transition-all"
+                                  style={{
+                                    width: `${progress.progress}%`,
+                                  }}
+                                />
+
+                              </div>
+
+                              <p className="mt-2 text-[10px] text-gray-600">
                                 {
-                                  progress.progress
-                                }
-                                %
-                              </span>
+                                  progress.completed_tasks
+                                }{" "}
+                                of{" "}
+                                {
+                                  progress.total_tasks
+                                }{" "}
+                                tasks completed
+                              </p>
 
                             </div>
-
-                            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
-
-                              <div
-                                className="h-full rounded-full bg-cyan-400 transition-all"
-                                style={{
-                                  width: `${progress.progress}%`,
-                                }}
-                              />
-
-                            </div>
-
-                            <p className="mt-2 text-[10px] text-gray-600">
-                              {
-                                progress.completed_tasks
-                              }{" "}
-                              of{" "}
-                              {
-                                progress.total_tasks
-                              }{" "}
-                              tasks completed
-                            </p>
-
-                          </div>
-                        );
-                      })}
+                          );
+                        }
+                      )}
 
                   </div>
-
                 )}
 
               </section>
@@ -1958,9 +2230,7 @@ export default function Home() {
 
                 ) : goals.length === 0 ? (
 
-                  <EmptyState
-                    text="No goals yet."
-                  />
+                  <EmptyState text="No goals yet." />
 
                 ) : (
 
@@ -2035,7 +2305,6 @@ export default function Home() {
                       ))}
 
                   </div>
-
                 )}
 
               </section>
@@ -2087,9 +2356,7 @@ export default function Home() {
 
                 ) : notes.length === 0 ? (
 
-                  <EmptyState
-                    text="No notes yet."
-                  />
+                  <EmptyState text="No notes yet." />
 
                 ) : (
 
@@ -2131,7 +2398,6 @@ export default function Home() {
                       ))}
 
                   </div>
-
                 )}
 
               </section>
