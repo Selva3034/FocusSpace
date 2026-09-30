@@ -174,6 +174,14 @@ export default function Home() {
   const [notesLoading, setNotesLoading] =
     useState(true);
 
+  /* API ERRORS */
+
+  const [tasksError, setTasksError] = useState("");
+  const [projectsError, setProjectsError] =
+    useState("");
+  const [goalsError, setGoalsError] = useState("");
+  const [notesError, setNotesError] = useState("");
+
   /* BACKEND */
 
   const [backendOnline, setBackendOnline] =
@@ -239,6 +247,7 @@ export default function Home() {
   const loadTasks = async () => {
     try {
       setTasksLoading(true);
+      setTasksError("");
 
       const response = await fetch(
         `${API_URL}/api/tasks`
@@ -254,7 +263,10 @@ export default function Home() {
 
       setTasks(data);
     } catch (error) {
-      console.error(error);
+      console.error("Tasks error:", error);
+      setTasksError(
+        "We couldn't load your tasks. Please try again."
+      );
     } finally {
       setTasksLoading(false);
     }
@@ -267,6 +279,7 @@ export default function Home() {
   const loadGoals = async () => {
     try {
       setGoalsLoading(true);
+      setGoalsError("");
 
       const response = await fetch(
         `${API_URL}/api/goals`
@@ -282,7 +295,10 @@ export default function Home() {
 
       setGoals(data);
     } catch (error) {
-      console.error(error);
+      console.error("Goals error:", error);
+      setGoalsError(
+        "We couldn't load your goals. Please try again."
+      );
     } finally {
       setGoalsLoading(false);
     }
@@ -295,6 +311,7 @@ export default function Home() {
   const loadProjects = async () => {
     try {
       setProjectsLoading(true);
+      setProjectsError("");
 
       const [
         projectsResponse,
@@ -324,7 +341,13 @@ export default function Home() {
       setProjects(projectsData);
       setProjectProgress(progressData);
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Projects error:",
+        error
+      );
+      setProjectsError(
+        "We couldn't load your projects. Please try again."
+      );
     } finally {
       setProjectsLoading(false);
     }
@@ -337,6 +360,7 @@ export default function Home() {
   const loadNotes = async () => {
     try {
       setNotesLoading(true);
+      setNotesError("");
 
       const response = await fetch(
         `${API_URL}/api/notes`
@@ -352,7 +376,10 @@ export default function Home() {
 
       setNotes(data);
     } catch (error) {
-      console.error(error);
+      console.error("Notes error:", error);
+      setNotesError(
+        "We couldn't load your notes. Please try again."
+      );
     } finally {
       setNotesLoading(false);
     }
@@ -1609,7 +1636,7 @@ export default function Home() {
 
               {/* QUICK ADD */}
 
-              <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <section className="mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                 <div className="mb-4">
 
@@ -1664,7 +1691,7 @@ export default function Home() {
 
                 {/* TASKS */}
 
-                <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                <section className="focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                   <div className="flex flex-col gap-4">
 
@@ -1794,25 +1821,24 @@ export default function Home() {
 
                     </div>
 
+                  ) : tasksError ? (
+
+                    <ErrorState
+                      title="Unable to load tasks"
+                      message={tasksError}
+                      onRetry={loadTasks}
+                    />
+
                   ) : filteredAndSortedTasks.length ===
                     0 ? (
 
-                    <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-8 text-center">
-
-                      <div className="text-2xl">
-                        ✓
-                      </div>
-
-                      <p className="mt-3 text-sm font-medium text-gray-300">
-                        No tasks found
-                      </p>
-
-                      <p className="mt-1 text-xs text-gray-600">
-                        Try changing the
-                        filter.
-                      </p>
-
-                    </div>
+                    <EmptyState
+                      text={
+                        taskFilter === "All"
+                          ? "No tasks yet. Add your first task to get started."
+                          : "No tasks match the selected filter."
+                      }
+                    />
 
                   ) : (
 
@@ -1924,7 +1950,7 @@ export default function Home() {
 
                   {/* POMODORO */}
 
-                  <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                  <section className="focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                     <div className="flex items-center justify-between">
 
@@ -1965,7 +1991,7 @@ export default function Home() {
                               !current
                           )
                         }
-                        className="flex-1 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-black"
+                        className="flex-1 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-black shadow-lg shadow-cyan-400/10 transition hover:bg-cyan-300 active:scale-[0.98]"
                       >
                         {pomodoroRunning
                           ? "Pause"
@@ -1992,7 +2018,7 @@ export default function Home() {
 
                   {/* QUICK ACTIONS */}
 
-                  <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                  <section className="focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                     <h2 className="text-lg font-bold">
                       Quick Actions
@@ -2054,7 +2080,7 @@ export default function Home() {
 
               {/* PROJECTS */}
 
-              <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <section className="mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                 <div className="flex items-center justify-between">
 
@@ -2076,7 +2102,7 @@ export default function Home() {
                         "Projects"
                       )
                     }
-                    className="text-xs font-semibold text-cyan-400"
+                    className="text-xs font-semibold text-cyan-400 transition hover:text-cyan-300"
                   >
                     View all →
                   </button>
@@ -2097,10 +2123,20 @@ export default function Home() {
 
                   </div>
 
+                ) : projectsError ? (
+
+                  <ErrorState
+                    title="Unable to load projects"
+                    message={projectsError}
+                    onRetry={loadProjects}
+                  />
+
                 ) : projects.length ===
                   0 ? (
 
-                  <EmptyState text="No projects yet." />
+                  <EmptyState
+                    text="No projects yet. Create your first project to organize your work."
+                  />
 
                 ) : (
 
@@ -2121,7 +2157,7 @@ export default function Home() {
                               key={
                                 project.id
                               }
-                              className="rounded-2xl border border-white/5 bg-white/[0.02] p-4"
+                              className="focus-card rounded-2xl border border-white/5 bg-white/[0.02] p-4"
                             >
 
                               <div className="flex items-start justify-between gap-3">
@@ -2185,7 +2221,7 @@ export default function Home() {
 
               {/* GOALS */}
 
-              <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <section className="mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                 <div className="flex items-center justify-between">
 
@@ -2207,7 +2243,7 @@ export default function Home() {
                         "Goals"
                       )
                     }
-                    className="text-xs font-semibold text-cyan-400"
+                    className="text-xs font-semibold text-cyan-400 transition hover:text-cyan-300"
                   >
                     View all →
                   </button>
@@ -2228,9 +2264,19 @@ export default function Home() {
 
                   </div>
 
+                ) : goalsError ? (
+
+                  <ErrorState
+                    title="Unable to load goals"
+                    message={goalsError}
+                    onRetry={loadGoals}
+                  />
+
                 ) : goals.length === 0 ? (
 
-                  <EmptyState text="No goals yet." />
+                  <EmptyState
+                    text="No goals yet. Create a goal and start tracking your progress."
+                  />
 
                 ) : (
 
@@ -2242,7 +2288,7 @@ export default function Home() {
 
                         <div
                           key={goal.id}
-                          className="rounded-2xl border border-white/5 bg-white/[0.02] p-4"
+                          className="focus-card rounded-2xl border border-white/5 bg-white/[0.02] p-4"
                         >
 
                           <div className="flex items-start justify-between gap-3">
@@ -2311,7 +2357,7 @@ export default function Home() {
 
               {/* NOTES */}
 
-              <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <section className="mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                 <div className="flex items-center justify-between">
 
@@ -2333,7 +2379,7 @@ export default function Home() {
                         "Notes"
                       )
                     }
-                    className="text-xs font-semibold text-cyan-400"
+                    className="text-xs font-semibold text-cyan-400 transition hover:text-cyan-300"
                   >
                     View all →
                   </button>
@@ -2354,9 +2400,19 @@ export default function Home() {
 
                   </div>
 
+                ) : notesError ? (
+
+                  <ErrorState
+                    title="Unable to load notes"
+                    message={notesError}
+                    onRetry={loadNotes}
+                  />
+
                 ) : notes.length === 0 ? (
 
-                  <EmptyState text="No notes yet." />
+                  <EmptyState
+                    text="No notes yet. Create your first note to keep your ideas organized."
+                  />
 
                 ) : (
 
@@ -2368,7 +2424,7 @@ export default function Home() {
 
                         <div
                           key={note.id}
-                          className="rounded-2xl border border-white/5 bg-white/[0.02] p-4"
+                          className="focus-card rounded-2xl border border-white/5 bg-white/[0.02] p-4"
                         >
 
                           <h3 className="truncate text-sm font-semibold">
@@ -2447,7 +2503,7 @@ function StatCard({
   icon: string;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-cyan-400/20 hover:bg-white/[0.04]">
+    <div className="focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-cyan-400/20 hover:bg-white/[0.04]">
 
       <div className="flex items-start justify-between">
 
@@ -2560,7 +2616,7 @@ function TaskSkeleton() {
 
 function ProjectSkeleton() {
   return (
-    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+    <div className="focus-card rounded-2xl border border-white/5 bg-white/[0.02] p-4">
 
       <div className="flex items-start justify-between gap-3">
 
@@ -2592,7 +2648,7 @@ function ProjectSkeleton() {
 
 function GoalSkeleton() {
   return (
-    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+    <div className="focus-card rounded-2xl border border-white/5 bg-white/[0.02] p-4">
 
       <div className="flex items-start justify-between gap-3">
 
@@ -2628,7 +2684,7 @@ function GoalSkeleton() {
 
 function NoteSkeleton() {
   return (
-    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+    <div className="focus-card rounded-2xl border border-white/5 bg-white/[0.02] p-4">
 
       <SkeletonBlock className="h-4 w-3/5" />
 
