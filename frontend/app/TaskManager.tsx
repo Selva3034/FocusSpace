@@ -1,9 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import TaskManager from "./TaskManager";
-import ProjectsManager from "./ProjectsManager";
-import NotesManager from "./NotesManager";
 
 type Task = {
   id: number;
@@ -14,23 +11,41 @@ type Task = {
   project_id: number | null;
 };
 
-type ActiveMenu =
-  | "Dashboard"
-  | "Tasks"
-  | "Projects"
-  | "Notes";
+type Project = {
+  id: number;
+  name: string;
+  description: string;
+  status: "Active" | "Completed" | "Paused";
+};
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000";
 
-export default function Home() {
-  const [activeMenu, setActiveMenu] =
-    useState<ActiveMenu>("Dashboard");
-
+export default function TaskManager() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(true);
+  const [projects, setProjects] = useState<Project[]>([]);
 
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
-  const [timerRunning, setTimerRunning] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [projectsLoading, setProjectsLoading] =
+    useState(true);
+
+  const [saving, setSaving] = useState(false);
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const [title, setTitle] = useState("");
+  const [category, setCategory] =
+    useState("Personal");
+
+  const [priority, setPriority] =
+    useState<"High" | "Medium" | "Low">(
+      "Medium"
+    );
+
+  const [projectId, setProjectId] =
+    useState<number | null>(null);
 
   // ==================================================
   // LOAD TASKS
@@ -38,616 +53,672 @@ export default function Home() {
 
   const loadTasks = async () => {
     try {
-      setLoadingTasks(true);
+      setLoading(true);
+      setError("");
 
       const response = await fetch(
         `${API_URL}/api/tasks`
       );
 
       if (!response.ok) {
-        throw new Error("Failed to load tasks");
+        throw new Error(
+          "Failed to load tasks."
+        );
       }
 
       const data = await response.json();
 
       setTasks(data);
     } catch (error) {
-      console.error(error);
+      console.error("Tasks error:", error);
+
+      setError(
+        "We couldn't load your tasks. Please try again."
+      );
     } finally {
-      setLoadingTasks(false);
+      setLoading(false);
     }
   };
+
+  // ==================================================
+  // LOAD PROJECTS
+  // ==================================================
+
+  const loadProjects = async () => {
+    try {
+      setProjectsLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/api/projects`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Failed to load projects."
+        );
+      }
+
+      const data = await response.json();
+
+      setProjects(data);
+    } catch (error) {
+      console.error(
+        "Projects error:",
+        error
+      );
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
+  // ==================================================
+  // INITIAL LOAD
+  // ==================================================
 
   useEffect(() => {
     loadTasks();
+    loadProjects();
   }, []);
 
   // ==================================================
-  // TIMER
+  // CREATE TASK
   // ==================================================
 
-  useEffect(() => {
-    if (!timerRunning) {
+  const addTask = async () => {
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
+      setError(
+        "Please enter a task title."
+      );
+
       return;
     }
 
-    if (timeLeft <= 0) {
-      setTimerRunning(false);
-      return;
-    }
+    try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
 
-    const timer = setInterval(() => {
-      setTimeLeft((currentTime) => currentTime - 1);
-    }, 1000);
+      const response = await fetch(
+        `${API_URL}/api/tasks`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            title: trimmedTitle,
+            category,
+            priority,
+            completed: false,
+            project_id: projectId,
+          }),
+        }
+      );
 
-    return () => clearInterval(timer);
-  }, [timerRunning, timeLeft]);
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-
-    return `${String(minutes).padStart(2, "0")}:${String(
-      remainingSeconds
-    ).padStart(2, "0")}`;
-  };
-
-  const resetTimer = () => {
-    setTimerRunning(false);
-    setTimeLeft(25 * 60);
-  };
-
-  // ==================================================
-  // TASK STATISTICS
-  // ==================================================
-
-  const completedTasks = tasks.filter(
-    (task) => task.completed
-  ).length;
-
-  const pendingTasks =
-    tasks.length - completedTasks;
-
-  const completionPercentage =
-    tasks.length === 0
-      ? 0
-      : Math.round(
-          (completedTasks / tasks.length) * 100
+      if (!response.ok) {
+        throw new Error(
+          "Failed to create task."
         );
+      }
+
+      const createdTask =
+        await response.json();
+
+      setTasks((currentTasks) => [
+        ...currentTasks,
+        createdTask,
+      ]);
+
+      setTitle("");
+      setCategory("Personal");
+      setPriority("Medium");
+      setProjectId(null);
+
+      setSuccess(
+        "Task created successfully."
+      );
+    } catch (error) {
+      console.error(
+        "Create task error:",
+        error
+      );
+
+      setError(
+        "Unable to create the task. Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // ==================================================
-  // MENU
+  // TOGGLE TASK
   // ==================================================
 
-  const menuItems: ActiveMenu[] = [
-    "Dashboard",
-    "Tasks",
-    "Projects",
-    "Notes",
-  ];
+  const toggleTask = async (
+    task: Task
+  ) => {
+    const updatedCompleted =
+      !task.completed;
+
+    // Optimistic UI update
+    setTasks((currentTasks) =>
+      currentTasks.map((item) =>
+        item.id === task.id
+          ? {
+              ...item,
+              completed:
+                updatedCompleted,
+            }
+          : item
+      )
+    );
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await fetch(
+        `${API_URL}/api/tasks/${task.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            completed:
+              updatedCompleted,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Failed to update task."
+        );
+      }
+
+      const updatedTask =
+        await response.json();
+
+      setTasks((currentTasks) =>
+        currentTasks.map((item) =>
+          item.id === updatedTask.id
+            ? updatedTask
+            : item
+        )
+      );
+
+      setSuccess(
+        updatedCompleted
+          ? "Task completed."
+          : "Task marked as pending."
+      );
+    } catch (error) {
+      console.error(
+        "Toggle task error:",
+        error
+      );
+
+      // Restore previous state
+      setTasks((currentTasks) =>
+        currentTasks.map((item) =>
+          item.id === task.id
+            ? task
+            : item
+        )
+      );
+
+      setError(
+        "Unable to update the task."
+      );
+    }
+  };
 
   // ==================================================
-  // DASHBOARD
+  // DELETE TASK
   // ==================================================
 
-  const renderDashboard = () => {
+  const deleteTask = async (
+    task: Task
+  ) => {
+    const confirmed =
+      window.confirm(
+        `Are you sure you want to delete "${task.title}"?`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await fetch(
+        `${API_URL}/api/tasks/${task.id}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Failed to delete task."
+        );
+      }
+
+      setTasks((currentTasks) =>
+        currentTasks.filter(
+          (item) =>
+            item.id !== task.id
+        )
+      );
+
+      setSuccess(
+        "Task deleted successfully."
+      );
+    } catch (error) {
+      console.error(
+        "Delete task error:",
+        error
+      );
+
+      setError(
+        "Unable to delete the task."
+      );
+    }
+  };
+
+  // ==================================================
+  // HELPERS
+  // ==================================================
+
+  const getProjectName = (
+    projectId: number | null
+  ) => {
+    if (!projectId) {
+      return "Personal";
+    }
+
     return (
-      <main className="min-h-screen bg-[#0b0f14] text-white">
-        <div className="mx-auto max-w-7xl px-6 py-10">
-
-          {/* HEADER */}
-
-          <div className="mb-8">
-
-            <p className="text-sm text-gray-500">
-              Welcome back
-            </p>
-
-            <h1 className="mt-2 text-3xl font-bold">
-              FocusSpace Dashboard
-            </h1>
-
-            <p className="mt-2 text-sm text-gray-500">
-              Organize your work, manage your projects,
-              and stay focused.
-            </p>
-
-          </div>
-
-          {/* STAT CARDS */}
-
-          <div className="grid gap-4 md:grid-cols-3">
-
-            {/* TOTAL TASKS */}
-
-            <div className="rounded-2xl border border-white/10 bg-[#101827] p-6">
-
-              <p className="text-sm text-gray-500">
-                Total Tasks
-              </p>
-
-              <p className="mt-3 text-3xl font-bold">
-                {loadingTasks
-                  ? "..."
-                  : tasks.length}
-              </p>
-
-              <p className="mt-2 text-xs text-gray-600">
-                Tasks in your workspace
-              </p>
-
-            </div>
-
-            {/* COMPLETED */}
-
-            <div className="rounded-2xl border border-white/10 bg-[#101827] p-6">
-
-              <p className="text-sm text-gray-500">
-                Completed
-              </p>
-
-              <p className="mt-3 text-3xl font-bold text-cyan-400">
-                {loadingTasks
-                  ? "..."
-                  : completedTasks}
-              </p>
-
-              <p className="mt-2 text-xs text-gray-600">
-                Completed tasks
-              </p>
-
-            </div>
-
-            {/* PENDING */}
-
-            <div className="rounded-2xl border border-white/10 bg-[#101827] p-6">
-
-              <p className="text-sm text-gray-500">
-                Pending
-              </p>
-
-              <p className="mt-3 text-3xl font-bold">
-                {loadingTasks
-                  ? "..."
-                  : pendingTasks}
-              </p>
-
-              <p className="mt-2 text-xs text-gray-600">
-                Tasks remaining
-              </p>
-
-            </div>
-
-          </div>
-
-          {/* MAIN GRID */}
-
-          <div className="mt-8 grid gap-6 lg:grid-cols-3">
-
-            {/* PROGRESS */}
-
-            <section className="rounded-3xl border border-white/10 bg-[#101827] p-6 lg:col-span-2">
-
-              <div className="flex items-center justify-between">
-
-                <div>
-
-                  <p className="text-sm text-gray-500">
-                    Task completion
-                  </p>
-
-                  <h2 className="mt-1 text-xl font-bold">
-                    Your Progress
-                  </h2>
-
-                </div>
-
-                <span className="text-2xl font-bold text-cyan-400">
-                  {completionPercentage}%
-                </span>
-
-              </div>
-
-              <div className="mt-6 h-3 overflow-hidden rounded-full bg-white/10">
-
-                <div
-                  className="h-full rounded-full bg-cyan-400 transition-all duration-500"
-                  style={{
-                    width: `${completionPercentage}%`,
-                  }}
-                />
-
-              </div>
-
-              <p className="mt-3 text-sm text-gray-500">
-                {completedTasks} of{" "}
-                {tasks.length} tasks completed
-              </p>
-
-            </section>
-
-            {/* FOCUS TIMER */}
-
-            <section className="rounded-3xl border border-white/10 bg-[#101827] p-6">
-
-              <p className="text-sm text-gray-500">
-                Focus session
-              </p>
-
-              <h2 className="mt-1 text-xl font-bold">
-                Pomodoro
-              </h2>
-
-              <div className="mt-6 text-center">
-
-                <div className="text-5xl font-bold tracking-wider text-cyan-400">
-                  {formatTime(timeLeft)}
-                </div>
-
-                <p className="mt-3 text-xs text-gray-500">
-                  25 minute focus session
-                </p>
-
-              </div>
-
-              <div className="mt-6 flex justify-center gap-3">
-
-                <button
-                  onClick={() =>
-                    setTimerRunning(
-                      (current) => !current
-                    )
-                  }
-                  className="rounded-xl bg-cyan-400 px-5 py-3 text-sm font-bold text-black transition hover:bg-cyan-300"
-                >
-                  {timerRunning
-                    ? "Pause"
-                    : "Start"}
-                </button>
-
-                <button
-                  onClick={resetTimer}
-                  className="rounded-xl border border-white/10 px-5 py-3 text-sm text-gray-400 transition hover:bg-white/5 hover:text-white"
-                >
-                  Reset
-                </button>
-
-              </div>
-
-            </section>
-
-          </div>
-
-          {/* RECENT TASKS */}
-
-          <section className="mt-8 rounded-3xl border border-white/10 bg-[#101827] p-6">
-
-            <div className="flex items-center justify-between">
-
-              <div>
-
-                <p className="text-sm text-gray-500">
-                  Your workload
-                </p>
-
-                <h2 className="mt-1 text-xl font-bold">
-                  Recent Tasks
-                </h2>
-
-              </div>
-
-              <button
-                onClick={() =>
-                  setActiveMenu("Tasks")
-                }
-                className="text-sm text-cyan-400 hover:text-cyan-300"
-              >
-                View all
-              </button>
-
-            </div>
-
-            <div className="mt-6">
-
-              {loadingTasks ? (
-
-                <p className="text-sm text-gray-500">
-                  Loading tasks...
-                </p>
-
-              ) : tasks.length === 0 ? (
-
-                <div className="rounded-xl border border-white/10 p-6 text-center">
-
-                  <p className="text-gray-400">
-                    No tasks yet.
-                  </p>
-
-                  <button
-                    onClick={() =>
-                      setActiveMenu("Tasks")
-                    }
-                    className="mt-3 text-sm text-cyan-400 hover:text-cyan-300"
-                  >
-                    Create your first task
-                  </button>
-
-                </div>
-
-              ) : (
-
-                <div className="space-y-3">
-
-                  {tasks
-                    .slice(-5)
-                    .reverse()
-                    .map((task) => (
-
-                      <div
-                        key={task.id}
-                        className="flex items-center gap-4 rounded-xl border border-white/10 bg-[#0b0f14] p-4"
-                      >
-
-                        <div
-                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 ${
-                            task.completed
-                              ? "border-cyan-400 bg-cyan-400 text-black"
-                              : "border-gray-600"
-                          }`}
-                        >
-                          {task.completed && "✓"}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-
-                          <p
-                            className={`text-sm font-semibold ${
-                              task.completed
-                                ? "text-gray-500 line-through"
-                                : "text-white"
-                            }`}
-                          >
-                            {task.title}
-                          </p>
-
-                          <p className="mt-1 text-xs text-gray-500">
-                            {task.category}
-                          </p>
-
-                        </div>
-
-                        <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-gray-400">
-                          {task.priority}
-                        </span>
-
-                      </div>
-
-                    ))}
-
-                </div>
-
-              )}
-
-            </div>
-
-          </section>
-
-          {/* QUICK ACTIONS */}
-
-          <section className="mt-8">
-
-            <h2 className="text-xl font-bold">
-              Quick Actions
-            </h2>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-
-              <button
-                onClick={() =>
-                  setActiveMenu("Tasks")
-                }
-                className="rounded-2xl border border-white/10 bg-[#101827] p-6 text-left transition hover:border-cyan-400/30 hover:bg-[#111d2d]"
-              >
-
-                <p className="font-bold">
-                  Add Task
-                </p>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  Create and manage your tasks.
-                </p>
-
-              </button>
-
-              <button
-                onClick={() =>
-                  setActiveMenu("Projects")
-                }
-                className="rounded-2xl border border-white/10 bg-[#101827] p-6 text-left transition hover:border-cyan-400/30 hover:bg-[#111d2d]"
-              >
-
-                <p className="font-bold">
-                  Manage Projects
-                </p>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  Organize your work into projects.
-                </p>
-
-              </button>
-
-              <button
-                onClick={() =>
-                  setActiveMenu("Notes")
-                }
-                className="rounded-2xl border border-white/10 bg-[#101827] p-6 text-left transition hover:border-cyan-400/30 hover:bg-[#111d2d]"
-              >
-
-                <p className="font-bold">
-                  Create Note
-                </p>
-
-                <p className="mt-2 text-sm text-gray-500">
-                  Capture ideas and important information.
-                </p>
-
-              </button>
-
-            </div>
-
-          </section>
-
-        </div>
-      </main>
+      projects.find(
+        (project) =>
+          project.id === projectId
+      )?.name ||
+      "Unknown Project"
     );
   };
 
+  const getPriorityClasses = (
+    taskPriority: Task["priority"]
+  ) => {
+    if (taskPriority === "High") {
+      return "bg-red-400/10 text-red-400 border-red-400/20";
+    }
+
+    if (taskPriority === "Medium") {
+      return "bg-yellow-400/10 text-yellow-400 border-yellow-400/20";
+    }
+
+    return "bg-green-400/10 text-green-400 border-green-400/20";
+  };
+
   // ==================================================
-  // MAIN LAYOUT
+  // RENDER
   // ==================================================
 
   return (
-    <div className="min-h-screen bg-[#0b0f14] text-white">
+    <section className="space-y-6">
+      {/* Header */}
 
-      {/* SIDEBAR */}
+      <div>
+        <h2 className="text-xl font-semibold text-white">
+          Task Manager
+        </h2>
 
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 border-r border-white/10 bg-[#0d131c] lg:block">
+        <p className="mt-1 text-sm text-gray-500">
+          Create, organize, and track your
+          tasks.
+        </p>
+      </div>
 
-        <div className="flex h-full flex-col">
+      {/* Messages */}
 
-          {/* LOGO */}
+      {error && (
+        <div className="rounded-xl border border-red-400/20 bg-red-400/5 px-4 py-3 text-sm text-red-400">
+          {error}
+        </div>
+      )}
 
-          <div className="px-6 py-8">
+      {success && (
+        <div className="rounded-xl border border-green-400/20 bg-green-400/5 px-4 py-3 text-sm text-green-400">
+          {success}
+        </div>
+      )}
 
-            <h1 className="text-2xl font-bold">
-              Focus<span className="text-cyan-400">
-                Space
-              </span>
-            </h1>
+      {/* Create Task */}
 
-            <p className="mt-1 text-sm text-gray-500">
-              Digital Workspace
-            </p>
+      <div className="rounded-2xl border border-white/10 bg-[#0d1218] p-5">
+        <div className="mb-5">
+          <h3 className="text-sm font-semibold text-gray-200">
+            Add New Task
+          </h3>
 
-          </div>
+          <p className="mt-1 text-xs text-gray-600">
+            Create a task and optionally
+            assign it to a project.
+          </p>
+        </div>
 
-          {/* NAVIGATION */}
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Title */}
 
-          <nav className="px-4">
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-xs font-medium text-gray-400">
+              Task Title
+            </label>
 
-            {menuItems.map((item) => (
-
-              <button
-                key={item}
-                onClick={() =>
-                  setActiveMenu(item)
+            <input
+              type="text"
+              value={title}
+              onChange={(event) =>
+                setTitle(event.target.value)
+              }
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter"
+                ) {
+                  addTask();
                 }
-                className={`mb-2 w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                  activeMenu === item
-                    ? "bg-cyan-400 text-black"
-                    : "text-gray-400 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                {item}
-              </button>
-
-            ))}
-
-          </nav>
-
-          {/* SYSTEM */}
-
-          <div className="mt-auto border-t border-white/10 px-6 py-6">
-
-            <p className="text-xs uppercase tracking-wider text-gray-600">
-              System
-            </p>
-
-            <div className="mt-4 flex items-center gap-3">
-
-              <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black text-xs">
-                FS
-              </div>
-
-              <div>
-
-                <p className="text-sm font-medium text-gray-400">
-                  Backend
-                </p>
-
-                <p className="text-xs text-cyan-400">
-                  Online
-                </p>
-
-              </div>
-
-            </div>
-
+              }}
+              placeholder="e.g. Complete JavaScript practice"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-700 focus:border-cyan-400/40 focus:bg-white/[0.05]"
+            />
           </div>
 
-        </div>
+          {/* Category */}
 
-      </aside>
+          <div>
+            <label className="mb-2 block text-xs font-medium text-gray-400">
+              Category
+            </label>
 
-      {/* MOBILE NAV */}
+            <input
+              type="text"
+              value={category}
+              onChange={(event) =>
+                setCategory(
+                  event.target.value
+                )
+              }
+              placeholder="Personal"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-700 focus:border-cyan-400/40 focus:bg-white/[0.05]"
+            />
+          </div>
 
-      <div className="border-b border-white/10 bg-[#0d131c] px-4 py-4 lg:hidden">
+          {/* Priority */}
 
-        <div className="flex items-center justify-between">
+          <div>
+            <label className="mb-2 block text-xs font-medium text-gray-400">
+              Priority
+            </label>
 
-          <h1 className="text-xl font-bold">
-            Focus<span className="text-cyan-400">
-              Space
-            </span>
-          </h1>
-
-          <select
-            value={activeMenu}
-            onChange={(event) =>
-              setActiveMenu(
-                event.target.value as ActiveMenu
-              )
-            }
-            className="rounded-lg border border-white/10 bg-[#1d293b] px-3 py-2 text-sm text-white outline-none"
-          >
-
-            {menuItems.map((item) => (
+            <select
+              value={priority}
+              onChange={(event) =>
+                setPriority(
+                  event.target.value as Task["priority"]
+                )
+              }
+              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/40"
+            >
               <option
-                key={item}
-                value={item}
+                value="High"
+                className="bg-[#0d1218]"
               >
-                {item}
+                High
               </option>
-            ))}
 
-          </select>
+              <option
+                value="Medium"
+                className="bg-[#0d1218]"
+              >
+                Medium
+              </option>
 
+              <option
+                value="Low"
+                className="bg-[#0d1218]"
+              >
+                Low
+              </option>
+            </select>
+          </div>
+
+          {/* Project */}
+
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-xs font-medium text-gray-400">
+              Project
+            </label>
+
+            <select
+              value={
+                projectId === null
+                  ? ""
+                  : projectId
+              }
+              onChange={(event) => {
+                const value =
+                  event.target.value;
+
+                setProjectId(
+                  value === ""
+                    ? null
+                    : Number(value)
+                );
+              }}
+              disabled={projectsLoading}
+              className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option
+                value=""
+                className="bg-[#0d1218]"
+              >
+                Personal / No Project
+              </option>
+
+              {projects.map(
+                (project) => (
+                  <option
+                    key={project.id}
+                    value={project.id}
+                    className="bg-[#0d1218]"
+                  >
+                    {project.name}
+                  </option>
+                )
+              )}
+            </select>
+          </div>
         </div>
 
+        {/* Add Button */}
+
+        <button
+          type="button"
+          onClick={addTask}
+          disabled={saving}
+          className="mt-5 w-full rounded-xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-black transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving
+            ? "Creating..."
+            : "Add Task"}
+        </button>
       </div>
 
-      {/* CONTENT */}
+      {/* Task List */}
 
-      <div className="lg:pl-64">
+      <div className="rounded-2xl border border-white/10 bg-[#0d1218] p-5">
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-200">
+              Your Tasks
+            </h3>
 
-        {activeMenu === "Dashboard" && (
-          renderDashboard()
+            <p className="mt-1 text-xs text-gray-600">
+              {tasks.length}{" "}
+              {tasks.length === 1
+                ? "task"
+                : "tasks"}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={loadTasks}
+            className="rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-gray-400 transition hover:bg-white/5 hover:text-white"
+          >
+            Refresh
+          </button>
+        </div>
+
+        {/* Loading */}
+
+        {loading && (
+          <div className="space-y-3">
+            {[1, 2, 3].map(
+              (item) => (
+                <div
+                  key={item}
+                  className="h-20 animate-pulse rounded-xl border border-white/5 bg-white/[0.02]"
+                />
+              )
+            )}
+          </div>
         )}
 
-        {activeMenu === "Tasks" && (
-          <TaskManager />
-        )}
+        {/* Empty */}
 
-        {activeMenu === "Projects" && (
-          <ProjectsManager />
-        )}
+        {!loading &&
+          tasks.length === 0 && (
+            <div className="rounded-xl border border-dashed border-white/10 px-5 py-10 text-center">
+              <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 text-gray-500">
+                +
+              </div>
 
-        {activeMenu === "Notes" && (
-          <NotesManager />
-        )}
+              <h4 className="mt-4 text-sm font-medium text-gray-300">
+                No tasks yet
+              </h4>
 
+              <p className="mt-1 text-xs text-gray-600">
+                Create your first task
+                above to get started.
+              </p>
+            </div>
+          )}
+
+        {/* Task Items */}
+
+        {!loading &&
+          tasks.length > 0 && (
+            <div className="space-y-3">
+              {tasks.map((task) => (
+                <div
+                  key={task.id}
+                  className={`group rounded-xl border p-4 transition ${
+                    task.completed
+                      ? "border-white/5 bg-white/[0.015]"
+                      : "border-white/10 bg-white/[0.02] hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Checkbox */}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toggleTask(task)
+                      }
+                      aria-label={
+                        task.completed
+                          ? "Mark task as pending"
+                          : "Complete task"
+                      }
+                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-xs transition ${
+                        task.completed
+                          ? "border-cyan-400 bg-cyan-400 text-black"
+                          : "border-white/20 bg-white/[0.02] hover:border-cyan-400/50"
+                      }`}
+                    >
+                      {task.completed
+                        ? "✓"
+                        : ""}
+                    </button>
+
+                    {/* Content */}
+
+                    <div className="min-w-0 flex-1">
+                      <h4
+                        className={`text-sm font-medium ${
+                          task.completed
+                            ? "text-gray-600 line-through"
+                            : "text-gray-200"
+                        }`}
+                      >
+                        {task.title}
+                      </h4>
+
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {/* Category */}
+
+                        <span className="rounded-md bg-white/5 px-2 py-1 text-[10px] text-gray-500">
+                          {task.category}
+                        </span>
+
+                        {/* Priority */}
+
+                        <span
+                          className={`rounded-md border px-2 py-1 text-[10px] ${getPriorityClasses(
+                            task.priority
+                          )}`}
+                        >
+                          {task.priority}
+                        </span>
+
+                        {/* Project */}
+
+                        <span className="rounded-md bg-cyan-400/5 px-2 py-1 text-[10px] text-cyan-400/70">
+                          {getProjectName(
+                            task.project_id
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Delete */}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        deleteTask(task)
+                      }
+                      aria-label="Delete task"
+                      className="rounded-lg px-2 py-1.5 text-xs text-gray-700 opacity-100 transition hover:bg-red-400/10 hover:text-red-400 md:opacity-0 md:group-hover:opacity-100"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
       </div>
-
-    </div>
+    </section>
   );
 }
