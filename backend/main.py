@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
 from pydantic import BaseModel
+
 from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
@@ -53,8 +55,12 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        # Local development
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+
+        # Production frontend
+        "https://focus-space-lemon.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -180,6 +186,7 @@ def create_task(
     task_data: TaskCreate,
     db: Session = Depends(get_db)
 ):
+
     if task_data.project_id is not None:
 
         project = (
@@ -217,6 +224,7 @@ def update_task(
     task_data: TaskUpdate,
     db: Session = Depends(get_db)
 ):
+
     task = (
         db.query(Task)
         .filter(Task.id == task_id)
@@ -263,6 +271,7 @@ def delete_task(
     task_id: int,
     db: Session = Depends(get_db)
 ):
+
     task = (
         db.query(Task)
         .filter(Task.id == task_id)
@@ -301,6 +310,7 @@ def create_project(
     project_data: ProjectCreate,
     db: Session = Depends(get_db)
 ):
+
     new_project = Project(
         name=project_data.name,
         description=project_data.description,
@@ -320,6 +330,7 @@ def update_project(
     project_data: ProjectUpdate,
     db: Session = Depends(get_db)
 ):
+
     project = (
         db.query(Project)
         .filter(Project.id == project_id)
@@ -350,6 +361,7 @@ def delete_project(
     project_id: int,
     db: Session = Depends(get_db)
 ):
+
     project = (
         db.query(Project)
         .filter(Project.id == project_id)
@@ -362,6 +374,7 @@ def delete_project(
             detail="Project not found"
         )
 
+    # Unlink tasks from this project
     tasks = (
         db.query(Task)
         .filter(Task.project_id == project_id)
@@ -371,6 +384,7 @@ def delete_project(
     for task in tasks:
         task.project_id = None
 
+    # Unlink notes from this project
     notes = (
         db.query(Note)
         .filter(Note.project_id == project_id)
@@ -397,6 +411,7 @@ def get_project_progress(
     project_id: int,
     db: Session = Depends(get_db)
 ):
+
     project = (
         db.query(Project)
         .filter(Project.id == project_id)
@@ -443,6 +458,7 @@ def get_project_progress(
 def get_all_projects_progress(
     db: Session = Depends(get_db)
 ):
+
     projects = db.query(Project).all()
 
     results = []
@@ -491,6 +507,7 @@ def get_all_projects_progress(
 def get_notes(
     db: Session = Depends(get_db)
 ):
+
     notes = (
         db.query(Note)
         .order_by(Note.id.desc())
@@ -505,6 +522,7 @@ def get_note(
     note_id: int,
     db: Session = Depends(get_db)
 ):
+
     note = (
         db.query(Note)
         .filter(Note.id == note_id)
@@ -525,6 +543,7 @@ def create_note(
     note_data: NoteCreate,
     db: Session = Depends(get_db)
 ):
+
     if note_data.project_id is not None:
 
         project = (
@@ -560,6 +579,7 @@ def update_note(
     note_data: NoteUpdate,
     db: Session = Depends(get_db)
 ):
+
     note = (
         db.query(Note)
         .filter(Note.id == note_id)
@@ -606,6 +626,7 @@ def delete_note(
     note_id: int,
     db: Session = Depends(get_db)
 ):
+
     note = (
         db.query(Note)
         .filter(Note.id == note_id)
@@ -635,6 +656,7 @@ def get_project_notes(
     project_id: int,
     db: Session = Depends(get_db)
 ):
+
     project = (
         db.query(Project)
         .filter(Project.id == project_id)
@@ -667,6 +689,7 @@ def get_project_notes(
 def get_goals(
     db: Session = Depends(get_db)
 ):
+
     goals = (
         db.query(Goal)
         .order_by(Goal.id.desc())
@@ -681,6 +704,7 @@ def get_goal(
     goal_id: int,
     db: Session = Depends(get_db)
 ):
+
     goal = (
         db.query(Goal)
         .filter(Goal.id == goal_id)
@@ -701,7 +725,11 @@ def create_goal(
     goal_data: GoalCreate,
     db: Session = Depends(get_db)
 ):
-    if goal_data.progress < 0 or goal_data.progress > 100:
+
+    if (
+        goal_data.progress < 0
+        or goal_data.progress > 100
+    ):
         raise HTTPException(
             status_code=400,
             detail="Progress must be between 0 and 100"
@@ -729,6 +757,7 @@ def update_goal(
     goal_data: GoalUpdate,
     db: Session = Depends(get_db)
 ):
+
     goal = (
         db.query(Goal)
         .filter(Goal.id == goal_id)
@@ -771,6 +800,7 @@ def delete_goal(
     goal_id: int,
     db: Session = Depends(get_db)
 ):
+
     goal = (
         db.query(Goal)
         .filter(Goal.id == goal_id)
