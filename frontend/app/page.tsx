@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -6,6 +6,7 @@ import TaskManager from "./TaskManager";
 import ProjectsManager from "./ProjectsManager";
 import NotesManager from "./NotesManager";
 import GoalsManager from "./GoalsManager";
+import PomodoroTimer from "./PomodoroTimer";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -108,27 +109,27 @@ const navigationItems: {
 }[] = [
   {
     name: "Dashboard",
-    icon: "⌂",
+    icon: "âŒ‚",
     description: "Overview",
   },
   {
     name: "Tasks",
-    icon: "✓",
+    icon: "âœ“",
     description: "Your tasks",
   },
   {
     name: "Projects",
-    icon: "▣",
+    icon: "â–£",
     description: "Workspaces",
   },
   {
     name: "Notes",
-    icon: "✎",
+    icon: "âœŽ",
     description: "Your notes",
   },
   {
     name: "Goals",
-    icon: "◎",
+    icon: "â—Ž",
     description: "Track goals",
   },
 ];
@@ -819,7 +820,7 @@ export default function Home() {
             type: "Task",
             id: task.id,
             title: task.title,
-            subtitle: `Task • ${projectName}`,
+            subtitle: `Task â€¢ ${projectName}`,
           });
         }
       });
@@ -863,7 +864,7 @@ export default function Home() {
             type: "Note",
             id: note.id,
             title: note.title,
-            subtitle: `Note • ${projectName}`,
+            subtitle: `Note â€¢ ${projectName}`,
           });
         }
       });
@@ -1063,7 +1064,7 @@ export default function Home() {
               </div>
 
               <span className="text-xs text-gray-600">
-                ⋮
+                â‹®
               </span>
 
             </div>
@@ -1242,7 +1243,7 @@ export default function Home() {
               </div>
 
               <span className="text-xs text-gray-600">
-                ⋮
+                â‹®
               </span>
 
             </div>
@@ -1397,7 +1398,7 @@ export default function Home() {
 
           const icon =
             toast.type === "success"
-              ? "✓"
+              ? "âœ“"
               : toast.type === "error"
               ? "!"
               : "i";
@@ -1439,7 +1440,7 @@ export default function Home() {
                 }
                 className="text-gray-500 transition hover:text-white"
               >
-                ✕
+                âœ•
               </button>
 
             </div>
@@ -1495,7 +1496,7 @@ export default function Home() {
                     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 transition focus-within:border-cyan-400/30">
 
                       <span className="text-gray-500">
-                        ⌕
+                        âŒ•
                       </span>
 
                       <input
@@ -1516,7 +1517,7 @@ export default function Home() {
                           }
                           className="text-gray-500 hover:text-white"
                         >
-                          ✕
+                          âœ•
                         </button>
                       )}
 
@@ -1544,19 +1545,19 @@ export default function Home() {
                                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-400">
                                   {result.type ===
                                     "Task" &&
-                                    "✓"}
+                                    "âœ“"}
 
                                   {result.type ===
                                     "Project" &&
-                                    "▣"}
+                                    "â–£"}
 
                                   {result.type ===
                                     "Note" &&
-                                    "✎"}
+                                    "âœŽ"}
 
                                   {result.type ===
                                     "Goal" &&
-                                    "◎"}
+                                    "â—Ž"}
                                 </div>
 
                                 <div className="min-w-0">
@@ -1610,28 +1611,28 @@ export default function Home() {
                   title="Total Tasks"
                   value={totalTasks}
                   subtitle={`${completedTasks} completed`}
-                  icon="✓"
+                  icon="âœ“"
                 />
 
                 <StatCard
                   title="Pending Tasks"
                   value={pendingTasks}
                   subtitle={`${highPriorityTasks} high priority`}
-                  icon="◷"
+                  icon="â—·"
                 />
 
                 <StatCard
                   title="Projects"
                   value={projects.length}
                   subtitle={`${activeProjects} active`}
-                  icon="▣"
+                  icon="â–£"
                 />
 
                 <StatCard
                   title="Goals"
                   value={goals.length}
                   subtitle={`${activeGoals} active`}
-                  icon="◎"
+                  icon="â—Ž"
                 />
 
               </div>
@@ -1723,7 +1724,7 @@ export default function Home() {
                         }
                         className="text-xs font-semibold text-cyan-400 hover:text-cyan-300"
                       >
-                        View all →
+                        View all â†’
                       </button>
 
                     </div>
@@ -1869,7 +1870,7 @@ export default function Home() {
                                 }`}
                               >
                                 {task.completed
-                                  ? "✓"
+                                  ? "âœ“"
                                   : ""}
                               </button>
 
@@ -1896,7 +1897,7 @@ export default function Home() {
                                   </span>
 
                                   <span className="text-[10px] text-gray-700">
-                                    •
+                                    â€¢
                                   </span>
 
                                   <span className="text-[10px] text-gray-600">
@@ -1933,7 +1934,7 @@ export default function Home() {
                                 }
                                 className="text-xs text-gray-700 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
                               >
-                                ✕
+                                âœ•
                               </button>
 
                             </div>
@@ -1949,74 +1950,11 @@ export default function Home() {
                 {/* RIGHT COLUMN */}
 
                 <div className="space-y-6">
+                {/* POMODORO */}
 
-                  {/* POMODORO */}
+                <PomodoroTimer />
 
-                  <section className="focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
-                    <div className="flex items-center justify-between">
-
-                      <div>
-
-                        <p className="text-xs font-medium uppercase tracking-wider text-cyan-400">
-                          Focus Timer
-                        </p>
-
-                        <h2 className="mt-1 text-lg font-bold">
-                          Pomodoro
-                        </h2>
-
-                      </div>
-
-                      <span className="rounded-lg bg-cyan-400/10 px-2 py-1 text-[10px] text-cyan-400">
-                        25 min
-                      </span>
-
-                    </div>
-
-                    <div className="py-8 text-center">
-
-                      <div className="text-5xl font-black tracking-wider">
-                        {formatPomodoro(
-                          pomodoroSeconds
-                        )}
-                      </div>
-
-                    </div>
-
-                    <div className="flex gap-3">
-
-                      <button
-                        onClick={() =>
-                          setPomodoroRunning(
-                            (current) =>
-                              !current
-                          )
-                        }
-                        className="flex-1 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-black shadow-lg shadow-cyan-400/10 transition hover:bg-cyan-300 active:scale-[0.98]"
-                      >
-                        {pomodoroRunning
-                          ? "Pause"
-                          : "Start"}
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setPomodoroRunning(
-                            false
-                          );
-                          setPomodoroSeconds(
-                            25 * 60
-                          );
-                        }}
-                        className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-400 hover:bg-white/5 hover:text-white"
-                      >
-                        Reset
-                      </button>
-
-                    </div>
-
-                  </section>
 
                   {/* QUICK ACTIONS */}
 
@@ -2029,7 +1967,7 @@ export default function Home() {
                     <div className="mt-4 grid grid-cols-2 gap-3">
 
                       <QuickAction
-                        icon="✓"
+                        icon="âœ“"
                         title="Tasks"
                         subtitle="Manage tasks"
                         onClick={() =>
@@ -2040,7 +1978,7 @@ export default function Home() {
                       />
 
                       <QuickAction
-                        icon="▣"
+                        icon="â–£"
                         title="Projects"
                         subtitle="Manage projects"
                         onClick={() =>
@@ -2051,7 +1989,7 @@ export default function Home() {
                       />
 
                       <QuickAction
-                        icon="✎"
+                        icon="âœŽ"
                         title="Notes"
                         subtitle="Capture ideas"
                         onClick={() =>
@@ -2062,7 +2000,7 @@ export default function Home() {
                       />
 
                       <QuickAction
-                        icon="◎"
+                        icon="â—Ž"
                         title="Goals"
                         subtitle="Track goals"
                         onClick={() =>
@@ -2106,7 +2044,7 @@ export default function Home() {
                     }
                     className="text-xs font-semibold text-cyan-400 transition hover:text-cyan-300"
                   >
-                    View all →
+                    View all â†’
                   </button>
 
                 </div>
@@ -2247,7 +2185,7 @@ export default function Home() {
                     }
                     className="text-xs font-semibold text-cyan-400 transition hover:text-cyan-300"
                   >
-                    View all →
+                    View all â†’
                   </button>
 
                 </div>
@@ -2383,7 +2321,7 @@ export default function Home() {
                     }
                     className="text-xs font-semibold text-cyan-400 transition hover:text-cyan-300"
                   >
-                    View all →
+                    View all â†’
                   </button>
 
                 </div>
@@ -2765,3 +2703,4 @@ function ErrorState({
     </div>
   );
 }
+
