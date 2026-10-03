@@ -7,24 +7,55 @@ type PomodoroMode =
   | "Short Break"
   | "Long Break";
 
-const DURATIONS: Record<PomodoroMode, number> = {
-  Focus: 25 * 60,
-  "Short Break": 5 * 60,
-  "Long Break": 15 * 60,
+const DEFAULT_DURATIONS: Record<
+  PomodoroMode,
+  number
+> = {
+  Focus: 25,
+  "Short Break": 5,
+  "Long Break": 15,
 };
 
 export default function PomodoroTimer() {
   const [mode, setMode] =
     useState<PomodoroMode>("Focus");
 
-  const [seconds, setSeconds] = useState(
-    DURATIONS.Focus
-  );
+  const [focusMinutes, setFocusMinutes] =
+    useState(25);
+
+  const [shortBreakMinutes, setShortBreakMinutes] =
+    useState(5);
+
+  const [longBreakMinutes, setLongBreakMinutes] =
+    useState(15);
+
+  const [seconds, setSeconds] =
+    useState(25 * 60);
 
   const [running, setRunning] =
     useState(false);
 
-  const [session, setSession] = useState(1);
+  const [session, setSession] =
+    useState(1);
+
+  const [showSettings, setShowSettings] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  /*
+   * Get current duration
+   */
+  const durationMinutes =
+    mode === "Focus"
+      ? focusMinutes
+      : mode === "Short Break"
+      ? shortBreakMinutes
+      : longBreakMinutes;
+
+  const durationSeconds =
+    durationMinutes * 60;
 
   /*
    * Timer
@@ -40,12 +71,19 @@ export default function PomodoroTimer() {
           setRunning(false);
 
           if (mode === "Focus") {
-            setSession((currentSession) => {
-              return currentSession + 1;
-            });
+            setSession(
+              (currentSession) =>
+                currentSession + 1
+            );
           }
 
-          return DURATIONS[mode];
+          setMessage(
+            mode === "Focus"
+              ? "Focus session complete. Great work!"
+              : "Break complete. Ready to focus?"
+          );
+
+          return durationSeconds;
         }
 
         return current - 1;
@@ -53,65 +91,89 @@ export default function PomodoroTimer() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [running, mode]);
-
-  /*
-   * Current duration
-   */
-  const duration = DURATIONS[mode];
+  }, [
+    running,
+    mode,
+    durationSeconds,
+  ]);
 
   /*
    * Progress
    */
   const progress = useMemo(() => {
+    if (durationSeconds <= 0) {
+      return 0;
+    }
+
     return Math.min(
       100,
       Math.max(
         0,
-        ((duration - seconds) / duration) * 100
+        ((durationSeconds - seconds) /
+          durationSeconds) *
+          100
       )
     );
-  }, [duration, seconds]);
+  }, [durationSeconds, seconds]);
 
   /*
    * Format timer
    */
-  const formatTime = (value: number) => {
-    const minutes = Math.floor(value / 60);
+  const formatTime = (
+    value: number
+  ) => {
+    const minutes = Math.floor(
+      value / 60
+    );
 
-    const remainingSeconds = value % 60;
+    const remainingSeconds =
+      value % 60;
 
     return `${String(minutes).padStart(
       2,
       "0"
-    )}:${String(remainingSeconds).padStart(
-      2,
-      "0"
-    )}`;
+    )}:${String(
+      remainingSeconds
+    ).padStart(2, "0")}`;
   };
 
   /*
    * Change mode
    */
-  const changeMode = (newMode: PomodoroMode) => {
+  const changeMode = (
+    newMode: PomodoroMode
+  ) => {
     setRunning(false);
 
     setMode(newMode);
 
-    setSeconds(DURATIONS[newMode]);
+    const newDuration =
+      newMode === "Focus"
+        ? focusMinutes
+        : newMode === "Short Break"
+        ? shortBreakMinutes
+        : longBreakMinutes;
+
+    setSeconds(newDuration * 60);
+
+    setMessage("");
   };
 
   /*
-   * Reset
+   * Reset timer
    */
   const resetTimer = () => {
     setRunning(false);
 
-    setSeconds(DURATIONS[mode]);
+    setSeconds(
+      durationMinutes * 60
+    );
+
+    setMessage("");
   };
 
   /*
-   * Skip
+   * Skip session
    */
   const skipSession = () => {
     const nextMode: PomodoroMode =
@@ -122,6 +184,59 @@ export default function PomodoroTimer() {
         : "Focus";
 
     changeMode(nextMode);
+
+    setMessage(
+      `Switched to ${nextMode}.`
+    );
+  };
+
+  /*
+   * Apply custom settings
+   */
+  const applySettings = () => {
+    const safeFocus = Math.min(
+      120,
+      Math.max(1, focusMinutes)
+    );
+
+    const safeShortBreak =
+      Math.min(
+        60,
+        Math.max(1, shortBreakMinutes)
+      );
+
+    const safeLongBreak =
+      Math.min(
+        120,
+        Math.max(1, longBreakMinutes)
+      );
+
+    setFocusMinutes(safeFocus);
+    setShortBreakMinutes(
+      safeShortBreak
+    );
+    setLongBreakMinutes(
+      safeLongBreak
+    );
+
+    setRunning(false);
+
+    const newDuration =
+      mode === "Focus"
+        ? safeFocus
+        : mode === "Short Break"
+        ? safeShortBreak
+        : safeLongBreak;
+
+    setSeconds(
+      newDuration * 60
+    );
+
+    setShowSettings(false);
+
+    setMessage(
+      "Timer settings updated."
+    );
   };
 
   return (
@@ -141,11 +256,117 @@ export default function PomodoroTimer() {
           </h2>
         </div>
 
-        <span className="rounded-lg bg-cyan-400/10 px-2 py-1 text-[10px] text-cyan-400">
-          Session {session}
-        </span>
+        <div className="flex items-center gap-2">
+
+          <span className="rounded-lg bg-cyan-400/10 px-2 py-1 text-[10px] text-cyan-400">
+            Session {session}
+          </span>
+
+          <button
+            onClick={() =>
+              setShowSettings(
+                (current) => !current
+              )
+            }
+            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-gray-400 transition hover:bg-white/5 hover:text-white"
+            title="Timer settings"
+          >
+            ⚙
+          </button>
+
+        </div>
 
       </div>
+
+      {/* SETTINGS */}
+
+      {showSettings && (
+        <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
+
+          <p className="text-xs font-semibold text-white">
+            Timer Settings
+          </p>
+
+          <p className="mt-1 text-[10px] text-gray-600">
+            Set your preferred session durations in minutes.
+          </p>
+
+          <div className="mt-4 grid grid-cols-3 gap-3">
+
+            {/* FOCUS */}
+
+            <div>
+              <label className="text-[10px] text-gray-500">
+                Focus
+              </label>
+
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={focusMinutes}
+                onChange={(event) =>
+                  setFocusMinutes(
+                    Number(event.target.value)
+                  )
+                }
+                className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400/50"
+              />
+            </div>
+
+            {/* SHORT BREAK */}
+
+            <div>
+              <label className="text-[10px] text-gray-500">
+                Short Break
+              </label>
+
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={shortBreakMinutes}
+                onChange={(event) =>
+                  setShortBreakMinutes(
+                    Number(event.target.value)
+                  )
+                }
+                className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400/50"
+              />
+            </div>
+
+            {/* LONG BREAK */}
+
+            <div>
+              <label className="text-[10px] text-gray-500">
+                Long Break
+              </label>
+
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={longBreakMinutes}
+                onChange={(event) =>
+                  setLongBreakMinutes(
+                    Number(event.target.value)
+                  )
+                }
+                className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400/50"
+              />
+            </div>
+
+          </div>
+
+          <button
+            onClick={applySettings}
+            className="mt-4 w-full rounded-xl bg-cyan-400 px-4 py-2.5 text-xs font-bold text-black transition hover:bg-cyan-300"
+          >
+            Apply Settings
+          </button>
+
+        </div>
+      )}
 
       {/* MODE BUTTONS */}
 
@@ -193,7 +414,7 @@ export default function PomodoroTimer() {
 
       </div>
 
-      {/* PROGRESS BAR */}
+      {/* PROGRESS */}
 
       <div className="mb-5 h-1.5 overflow-hidden rounded-full bg-white/5">
 
@@ -206,19 +427,29 @@ export default function PomodoroTimer() {
 
       </div>
 
+      {/* MESSAGE */}
+
+      {message && (
+        <div className="mb-4 rounded-xl border border-cyan-400/10 bg-cyan-400/5 px-3 py-2 text-center text-[10px] text-cyan-400">
+          {message}
+        </div>
+      )}
+
       {/* CONTROLS */}
 
       <div className="flex gap-2">
 
         <button
           onClick={() =>
-            setRunning((current) => !current)
+            setRunning(
+              (current) => !current
+            )
           }
           className="flex-1 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-black shadow-lg shadow-cyan-400/10 transition hover:bg-cyan-300 active:scale-[0.98]"
         >
           {running
             ? "Pause"
-            : seconds < duration
+            : seconds < durationSeconds
             ? "Resume"
             : "Start"}
         </button>
