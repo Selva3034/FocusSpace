@@ -7,14 +7,25 @@ type PomodoroMode =
   | "Short Break"
   | "Long Break";
 
-const DEFAULT_DURATIONS: Record<
-  PomodoroMode,
-  number
-> = {
-  Focus: 25,
-  "Short Break": 5,
-  "Long Break": 15,
+type Task = {
+  id: number;
+  title: string;
+  category: string;
+  priority: "High" | "Medium" | "Low";
+  completed: boolean;
+  project_id: number | null;
 };
+
+type Project = {
+  id: number;
+  name: string;
+  description: string;
+  status: string;
+};
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000";
 
 export default function PomodoroTimer() {
   const [mode, setMode] =
@@ -44,6 +55,73 @@ export default function PomodoroTimer() {
   const [message, setMessage] =
     useState("");
 
+  const [tasks, setTasks] =
+    useState<Task[]>([]);
+
+  const [projects, setProjects] =
+    useState<Project[]>([]);
+
+  const [selectedTaskId, setSelectedTaskId] =
+    useState<number | "">("");
+
+  const [selectedProjectId, setSelectedProjectId] =
+    useState<number | "">("");
+
+  const [loadingWorkItems, setLoadingWorkItems] =
+    useState(true);
+
+  /*
+   * Load tasks and projects
+   */
+  useEffect(() => {
+    const loadWorkItems = async () => {
+      try {
+        setLoadingWorkItems(true);
+
+        const [tasksResponse, projectsResponse] =
+          await Promise.all([
+            fetch(`${API_URL}/api/tasks`),
+            fetch(`${API_URL}/api/projects`),
+          ]);
+
+        if (!tasksResponse.ok) {
+          throw new Error("Failed to load tasks");
+        }
+
+        if (!projectsResponse.ok) {
+          throw new Error("Failed to load projects");
+        }
+
+        const tasksData =
+          await tasksResponse.json();
+
+        const projectsData =
+          await projectsResponse.json();
+
+        setTasks(
+          Array.isArray(tasksData)
+            ? tasksData
+            : []
+        );
+
+        setProjects(
+          Array.isArray(projectsData)
+            ? projectsData
+            : []
+        );
+      } catch (error) {
+        console.error(
+          "Failed to load Pomodoro work items:",
+          error
+        );
+      } finally {
+        setLoadingWorkItems(false);
+      }
+    };
+
+    loadWorkItems();
+  }, []);
+
   /*
    * Get current duration
    */
@@ -56,6 +134,24 @@ export default function PomodoroTimer() {
 
   const durationSeconds =
     durationMinutes * 60;
+
+  /*
+   * Selected task
+   */
+  const selectedTask =
+    tasks.find(
+      (task) =>
+        task.id === selectedTaskId
+    ) || null;
+
+  /*
+   * Selected project
+   */
+  const selectedProject =
+    projects.find(
+      (project) =>
+        project.id === selectedProjectId
+    ) || null;
 
   /*
    * Timer
@@ -79,7 +175,9 @@ export default function PomodoroTimer() {
 
           setMessage(
             mode === "Focus"
-              ? "Focus session complete. Great work!"
+              ? selectedTask
+                ? `Focus session completed for "${selectedTask.title}".`
+                : "Focus session complete. Great work!"
               : "Break complete. Ready to focus?"
           );
 
@@ -90,11 +188,13 @@ export default function PomodoroTimer() {
       });
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () =>
+      clearInterval(timer);
   }, [
     running,
     mode,
     durationSeconds,
+    selectedTask,
   ]);
 
   /*
@@ -114,7 +214,10 @@ export default function PomodoroTimer() {
           100
       )
     );
-  }, [durationSeconds, seconds]);
+  }, [
+    durationSeconds,
+    seconds,
+  ]);
 
   /*
    * Format timer
@@ -154,7 +257,9 @@ export default function PomodoroTimer() {
         ? shortBreakMinutes
         : longBreakMinutes;
 
-    setSeconds(newDuration * 60);
+    setSeconds(
+      newDuration * 60
+    );
 
     setMessage("");
   };
@@ -191,7 +296,7 @@ export default function PomodoroTimer() {
   };
 
   /*
-   * Apply custom settings
+   * Apply settings
    */
   const applySettings = () => {
     const safeFocus = Math.min(
@@ -212,9 +317,11 @@ export default function PomodoroTimer() {
       );
 
     setFocusMinutes(safeFocus);
+
     setShortBreakMinutes(
       safeShortBreak
     );
+
     setLongBreakMinutes(
       safeLongBreak
     );
@@ -237,6 +344,59 @@ export default function PomodoroTimer() {
     setMessage(
       "Timer settings updated."
     );
+  };
+
+  /*
+   * Select task
+   */
+  const handleTaskChange = (
+    value: string
+  ) => {
+    if (value === "") {
+      setSelectedTaskId("");
+
+      return;
+    }
+
+    const taskId =
+      Number(value);
+
+    setSelectedTaskId(taskId);
+
+    const task = tasks.find(
+      (item) =>
+        item.id === taskId
+    );
+
+    if (
+      task &&
+      task.project_id !== null
+    ) {
+      setSelectedProjectId(
+        task.project_id
+      );
+    }
+
+    setMessage("");
+  };
+
+  /*
+   * Select project
+   */
+  const handleProjectChange = (
+    value: string
+  ) => {
+    if (value === "") {
+      setSelectedProjectId("");
+
+      return;
+    }
+
+    setSelectedProjectId(
+      Number(value)
+    );
+
+    setMessage("");
   };
 
   return (
@@ -278,6 +438,126 @@ export default function PomodoroTimer() {
 
       </div>
 
+      {/* WORK ITEM SELECTION */}
+
+      <div className="mt-5 grid gap-3">
+
+        {/* PROJECT */}
+
+        <div>
+          <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-gray-500">
+            Project
+          </label>
+
+          <select
+            value={selectedProjectId}
+            onChange={(event) =>
+              handleProjectChange(
+                event.target.value
+              )
+            }
+            disabled={
+              loadingWorkItems
+            }
+            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-white outline-none transition focus:border-cyan-400/50"
+          >
+            <option
+              value=""
+              className="bg-[#11151f]"
+            >
+              No project
+            </option>
+
+            {projects.map(
+              (project) => (
+                <option
+                  key={project.id}
+                  value={project.id}
+                  className="bg-[#11151f]"
+                >
+                  {project.name}
+                </option>
+              )
+            )}
+          </select>
+        </div>
+
+        {/* TASK */}
+
+        <div>
+          <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-gray-500">
+            Task
+          </label>
+
+          <select
+            value={selectedTaskId}
+            onChange={(event) =>
+              handleTaskChange(
+                event.target.value
+              )
+            }
+            disabled={
+              loadingWorkItems
+            }
+            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-white outline-none transition focus:border-cyan-400/50"
+          >
+            <option
+              value=""
+              className="bg-[#11151f]"
+            >
+              No task selected
+            </option>
+
+            {tasks
+              .filter(
+                (task) =>
+                  !task.completed &&
+                  (selectedProjectId ===
+                    "" ||
+                    task.project_id ===
+                      selectedProjectId)
+              )
+              .map((task) => (
+                <option
+                  key={task.id}
+                  value={task.id}
+                  className="bg-[#11151f]"
+                >
+                  {task.title}
+                </option>
+              ))}
+          </select>
+        </div>
+
+      </div>
+
+      {/* SELECTED WORK */}
+
+      {(selectedTask ||
+        selectedProject) && (
+        <div className="mt-3 rounded-xl border border-cyan-400/10 bg-cyan-400/5 px-3 py-2">
+
+          {selectedProject && (
+            <p className="text-[10px] text-cyan-400">
+              Project:{" "}
+              <span className="font-semibold">
+                {selectedProject.name}
+              </span>
+            </p>
+          )}
+
+          {selectedTask && (
+            <p className="mt-1 text-[10px] text-gray-400">
+              Task:{" "}
+              <span className="font-semibold text-white">
+                {selectedTask.title}
+              </span>
+            </p>
+          )}
+
+        </div>
+      )}
+
       {/* SETTINGS */}
 
       {showSettings && (
@@ -293,8 +573,6 @@ export default function PomodoroTimer() {
 
           <div className="mt-4 grid grid-cols-3 gap-3">
 
-            {/* FOCUS */}
-
             <div>
               <label className="text-[10px] text-gray-500">
                 Focus
@@ -307,14 +585,14 @@ export default function PomodoroTimer() {
                 value={focusMinutes}
                 onChange={(event) =>
                   setFocusMinutes(
-                    Number(event.target.value)
+                    Number(
+                      event.target.value
+                    )
                   )
                 }
                 className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400/50"
               />
             </div>
-
-            {/* SHORT BREAK */}
 
             <div>
               <label className="text-[10px] text-gray-500">
@@ -325,17 +603,19 @@ export default function PomodoroTimer() {
                 type="number"
                 min={1}
                 max={60}
-                value={shortBreakMinutes}
+                value={
+                  shortBreakMinutes
+                }
                 onChange={(event) =>
                   setShortBreakMinutes(
-                    Number(event.target.value)
+                    Number(
+                      event.target.value
+                    )
                   )
                 }
                 className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400/50"
               />
             </div>
-
-            {/* LONG BREAK */}
 
             <div>
               <label className="text-[10px] text-gray-500">
@@ -346,10 +626,14 @@ export default function PomodoroTimer() {
                 type="number"
                 min={1}
                 max={120}
-                value={longBreakMinutes}
+                value={
+                  longBreakMinutes
+                }
                 onChange={(event) =>
                   setLongBreakMinutes(
-                    Number(event.target.value)
+                    Number(
+                      event.target.value
+                    )
                   )
                 }
                 className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400/50"
@@ -408,7 +692,9 @@ export default function PomodoroTimer() {
 
         <p className="mt-2 text-xs text-gray-600">
           {mode === "Focus"
-            ? "Stay focused"
+            ? selectedTask
+              ? `Working on: ${selectedTask.title}`
+              : "Stay focused"
             : "Take a break"}
         </p>
 
