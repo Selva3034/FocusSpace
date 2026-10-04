@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000";
+
 type FocusStatsData = {
   total_sessions: number;
   total_minutes: number;
 };
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
 
 export default function FocusStats() {
   const [stats, setStats] = useState<FocusStatsData>({
@@ -18,13 +18,9 @@ export default function FocusStats() {
   });
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   const loadStats = async () => {
     try {
-      setLoading(true);
-      setError("");
-
       const response = await fetch(
         `${API_URL}/api/focus-sessions/stats`
       );
@@ -36,12 +32,11 @@ export default function FocusStats() {
       const data = await response.json();
 
       setStats({
-        total_sessions: data.total_sessions ?? 0,
-        total_minutes: data.total_minutes ?? 0,
+        total_sessions: data.total_sessions || 0,
+        total_minutes: data.total_minutes || 0,
       });
     } catch (error) {
-      console.error(error);
-      setError("Unable to load focus statistics");
+      console.error("Focus statistics error:", error);
     } finally {
       setLoading(false);
     }
@@ -49,64 +44,146 @@ export default function FocusStats() {
 
   useEffect(() => {
     loadStats();
+
+    const interval = setInterval(() => {
+      loadStats();
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, []);
 
+  const hours = Math.floor(
+    stats.total_minutes / 60
+  );
+
+  const minutes = stats.total_minutes % 60;
+
+  const timeDisplay =
+    hours > 0
+      ? `${hours}h ${minutes}m`
+      : `${minutes}m`;
+
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-      <div className="mb-5">
-        <p className="text-xs font-medium uppercase tracking-wider text-cyan-400">
-          Productivity
-        </p>
+    <section className="focus-card mt-6 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#0d1422] via-[#0b111d] to-[#080d17] p-5 shadow-2xl sm:p-6">
 
-        <h2 className="mt-1 text-xl font-bold text-white">
-          Focus Statistics
-        </h2>
+      {/* HEADER */}
+      <div className="mb-6 flex items-start justify-between gap-4">
 
-        <p className="mt-1 text-sm text-gray-500">
-          Track your completed focus sessions.
-        </p>
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.8)]" />
+
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-400">
+              Productivity
+            </p>
+          </div>
+
+          <h2 className="text-xl font-bold text-white sm:text-2xl">
+            Focus Statistics
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Track your completed focus sessions.
+          </p>
+        </div>
+
+        <div className="hidden rounded-2xl border border-cyan-400/10 bg-cyan-400/5 px-3 py-2 sm:block">
+          <span className="text-xs text-slate-400">
+            All time
+          </span>
+        </div>
+
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="h-24 animate-pulse rounded-2xl bg-white/5" />
-          <div className="h-24 animate-pulse rounded-2xl bg-white/5" />
-        </div>
-      ) : error ? (
-        <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-300">
-          {error}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-white/10 bg-[#101624] p-4">
-            <p className="text-xs text-gray-500">
-              Focus Sessions
+      {/* STATS */}
+      <div className="grid gap-4 sm:grid-cols-2">
+
+        {/* SESSIONS */}
+        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/30 hover:bg-cyan-400/[0.03]">
+
+          <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-cyan-400/10 blur-2xl transition group-hover:bg-cyan-400/20" />
+
+          <div className="relative">
+
+            <div className="mb-4 flex items-center justify-between">
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-400/10 bg-cyan-400/10 text-lg">
+                ⏱
+              </div>
+
+              <span className="text-xs font-medium text-slate-600">
+                Sessions
+              </span>
+
+            </div>
+
+            {loading ? (
+              <div className="h-10 w-20 animate-pulse rounded-lg bg-white/10" />
+            ) : (
+              <p className="text-4xl font-black tracking-tight text-white">
+                {stats.total_sessions}
+              </p>
+            )}
+
+            <p className="mt-1 text-xs text-slate-500">
+              completed focus sessions
             </p>
 
-            <p className="mt-2 text-3xl font-black text-white">
-              {stats.total_sessions}
-            </p>
-
-            <p className="mt-1 text-xs text-gray-600">
-              completed
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-[#101624] p-4">
-            <p className="text-xs text-gray-500">
-              Focus Minutes
-            </p>
-
-            <p className="mt-2 text-3xl font-black text-cyan-400">
-              {stats.total_minutes}
-            </p>
-
-            <p className="mt-1 text-xs text-gray-600">
-              total time
-            </p>
           </div>
         </div>
-      )}
+
+        {/* TIME */}
+        <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.025] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/30 hover:bg-cyan-400/[0.03]">
+
+          <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-cyan-400/10 blur-2xl transition group-hover:bg-cyan-400/20" />
+
+          <div className="relative">
+
+            <div className="mb-4 flex items-center justify-between">
+
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-400/10 bg-cyan-400/10 text-lg">
+                ◷
+              </div>
+
+              <span className="text-xs font-medium text-slate-600">
+                Focus Time
+              </span>
+
+            </div>
+
+            {loading ? (
+              <div className="h-10 w-24 animate-pulse rounded-lg bg-white/10" />
+            ) : (
+              <p className="text-4xl font-black tracking-tight text-cyan-400">
+                {timeDisplay}
+              </p>
+            )}
+
+            <p className="mt-1 text-xs text-slate-500">
+              total focused time
+            </p>
+
+          </div>
+        </div>
+
+      </div>
+
+      {/* FOOTER */}
+      <div className="mt-5 flex items-center justify-between border-t border-white/5 pt-4">
+
+        <p className="text-xs text-slate-600">
+          Keep building your focus streak.
+        </p>
+
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+          <span className="text-xs text-slate-500">
+            Live stats
+          </span>
+        </div>
+
+      </div>
+
     </section>
   );
 }
