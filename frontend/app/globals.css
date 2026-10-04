@@ -440,3 +440,179 @@ textarea:disabled {
     max-width: none;
   }
 }
+/* =========================================================
+   FOCUSSPACE UI POLISH — GLOBAL
+   ========================================================= */
+
+/* Smooth overall experience */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Better text selection */
+::selection {
+  background: rgba(34, 211, 238, 0.25);
+  color: white;
+}
+
+/* Cleaner scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.45);
+}
+
+/* =========================================================
+   CARDS
+   ========================================================= */
+
+.focus-card {
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.focus-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(34, 211, 238, 0.035),
+      transparent 45%
+    );
+}
+
+.focus-card:hover {
+  border-color: rgba(34, 211, 238, 0.16);
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, 0.18),
+    0 0 30px rgba(34, 211, 238, 0.035);
+}
+
+/* =========================================================
+   FORM ELEMENTS
+   ========================================================= */
+
+input,
+select,
+textarea {
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: rgba(34, 211, 238, 0.55) !important;
+  box-shadow:
+    0 0 0 3px rgba(34, 211, 238, 0.08),
+    0 0 20px rgba(34, 211, 238, 0.04);
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+button {
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+/* Don't animate disabled buttons */
+button:disabled {
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* =========================================================
+   DASHBOARD METRIC CARDS
+   ========================================================= */
+
+.focus-card:hover .text-cyan-400 {
+  text-shadow: 0 0 18px rgba(34, 211, 238, 0.22);
+}
+
+/* =========================================================
+   LINKS
+   ========================================================= */
+
+a {
+  transition:
+    color 150ms ease,
+    opacity 150ms ease;
+}
+
+/* =========================================================
+   MOBILE POLISH
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .focus-card {
+    border-radius: 1.25rem;
+  }
+
+  button {
+    min-height: 40px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
