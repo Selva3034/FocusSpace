@@ -7,7 +7,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.orm import Session
 
 from database import Base, engine, get_db
-from models import Task, Project, Note, Goal
+from models import Task, Project, Note, Goal, FocusSession
 
 
 # ==================================================
@@ -143,7 +143,12 @@ class GoalUpdate(BaseModel):
     target_date: str | None = None
     progress: int | None = None
     status: str | None = None
-
+class FocusSessionCreate(BaseModel):
+    task_id: int | None = None
+    project_id: int | None = None
+    mode: str = "Focus"
+    duration_minutes: int
+    completed: bool = True
 
 # ==================================================
 # HOME
@@ -818,4 +823,88 @@ def delete_goal(
 
     return {
         "message": "Goal deleted successfully"
+    }
+# ==================================================
+# FOCUS SESSION ENDPOINTS
+# ==================================================
+
+@app.post("/api/focus-sessions")
+def create_focus_session(
+    session_data: FocusSessionCreate,
+    db: Session = Depends(get_db)
+):
+    if session_data.duration_minutes <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Duration must be greater than 0"
+        )
+
+    focus_session = FocusSession(
+        task_id=session_data.task_id,
+        project_id=session_data.project_id,
+        mode=session_data.mode,
+        duration_minutes=session_data.duration_minutes,
+        completed=session_data.completed,
+    )
+
+    db.add(focus_session)
+    db.commit()
+    db.refresh(focus_session)
+
+    return {
+        "id": focus_session.id,
+        "task_id": focus_session.task_id,
+        "project_id": focus_session.project_id,
+        "mode": focus_session.mode,
+        "duration_minutes": focus_session.duration_minutes,
+        "completed": focus_session.completed,
+    }
+
+
+@app.get("/api/focus-sessions")
+def get_focus_sessions(
+    db: Session = Depends(get_db)
+):
+    sessions = (
+        db.query(FocusSession)
+        .order_by(FocusSession.id.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": session.id,
+            "task_id": session.task_id,
+            "project_id": session.project_id,
+            "mode": session.mode,
+            "duration_minutes": session.duration_minutes,
+            "completed": session.completed,
+        }
+        for session in sessions
+    ]
+
+
+@app.get("/api/focus-sessions/stats")
+def get_focus_session_stats(
+    db: Session = Depends(get_db)
+):
+    sessions = (
+        db.query(FocusSession)
+        .filter(
+            FocusSession.mode == "Focus",
+            FocusSession.completed == True
+        )
+        .all()
+    )
+
+    total_sessions = len(sessions)
+
+    total_minutes = sum(
+        session.duration_minutes
+        for session in sessions
+    )
+
+    return {
+        "total_sessions": total_sessions,
+        "total_minutes": total_minutes,
     }

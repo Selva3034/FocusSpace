@@ -145,3 +145,12 @@ class Goal(Base):
         String(30),
         default="Active"
     )
+class FocusSession(Base):
+    __tablename__ = "focus_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    mode = Column(String(30), default="Focus")
+    duration_minutes = Column(Integer, nullable=False)
+    completed = Column(Boolean, default=True)

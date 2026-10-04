@@ -2,16 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type PomodoroMode =
-  | "Focus"
-  | "Short Break"
-  | "Long Break";
-
 type Task = {
   id: number;
   title: string;
-  category: string;
-  priority: "High" | "Medium" | "Low";
   completed: boolean;
   project_id: number | null;
 };
@@ -19,17 +12,19 @@ type Task = {
 type Project = {
   id: number;
   name: string;
-  description: string;
   status: string;
 };
+
+type TimerMode = "Focus" | "Short Break" | "Long Break";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://127.0.0.1:8000";
 
 export default function PomodoroTimer() {
-  const [mode, setMode] =
-    useState<PomodoroMode>("Focus");
+  /* =========================
+     TIMER SETTINGS
+  ========================= */
 
   const [focusMinutes, setFocusMinutes] =
     useState(25);
@@ -40,20 +35,32 @@ export default function PomodoroTimer() {
   const [longBreakMinutes, setLongBreakMinutes] =
     useState(15);
 
-  const [seconds, setSeconds] =
+  /* =========================
+     TIMER STATE
+  ========================= */
+
+  const [mode, setMode] =
+    useState<TimerMode>("Focus");
+
+  const [secondsLeft, setSecondsLeft] =
     useState(25 * 60);
 
-  const [running, setRunning] =
+  const [isRunning, setIsRunning] =
     useState(false);
 
-  const [session, setSession] =
-    useState(1);
+  const [sessionCount, setSessionCount] =
+    useState(0);
+
+  /* =========================
+     SETTINGS UI
+  ========================= */
 
   const [showSettings, setShowSettings] =
     useState(false);
 
-  const [message, setMessage] =
-    useState("");
+  /* =========================
+     TASKS / PROJECTS
+  ========================= */
 
   const [tasks, setTasks] =
     useState<Task[]>([]);
@@ -62,34 +69,48 @@ export default function PomodoroTimer() {
     useState<Project[]>([]);
 
   const [selectedTaskId, setSelectedTaskId] =
-    useState<number | "">("");
+    useState<number | null>(null);
 
   const [selectedProjectId, setSelectedProjectId] =
-    useState<number | "">("");
+    useState<number | null>(null);
 
   const [loadingWorkItems, setLoadingWorkItems] =
     useState(true);
 
-  /*
-   * Load tasks and projects
-   */
+  /* =========================
+     SESSION STATUS
+  ========================= */
+
+  const [sessionMessage, setSessionMessage] =
+    useState("");
+
+  const [savingSession, setSavingSession] =
+    useState(false);
+
+  /* =========================
+     LOAD TASKS + PROJECTS
+  ========================= */
+
   useEffect(() => {
     const loadWorkItems = async () => {
       try {
         setLoadingWorkItems(true);
 
-        const [tasksResponse, projectsResponse] =
-          await Promise.all([
-            fetch(`${API_URL}/api/tasks`),
-            fetch(`${API_URL}/api/projects`),
-          ]);
+        const [
+          tasksResponse,
+          projectsResponse,
+        ] = await Promise.all([
+          fetch(`${API_URL}/api/tasks`),
+          fetch(`${API_URL}/api/projects`),
+        ]);
 
-        if (!tasksResponse.ok) {
-          throw new Error("Failed to load tasks");
-        }
-
-        if (!projectsResponse.ok) {
-          throw new Error("Failed to load projects");
+        if (
+          !tasksResponse.ok ||
+          !projectsResponse.ok
+        ) {
+          throw new Error(
+            "Failed to load tasks or projects"
+          );
         }
 
         const tasksData =
@@ -98,20 +119,11 @@ export default function PomodoroTimer() {
         const projectsData =
           await projectsResponse.json();
 
-        setTasks(
-          Array.isArray(tasksData)
-            ? tasksData
-            : []
-        );
-
-        setProjects(
-          Array.isArray(projectsData)
-            ? projectsData
-            : []
-        );
+        setTasks(tasksData);
+        setProjects(projectsData);
       } catch (error) {
         console.error(
-          "Failed to load Pomodoro work items:",
+          "Failed to load work items:",
           error
         );
       } finally {
@@ -122,640 +134,681 @@ export default function PomodoroTimer() {
     loadWorkItems();
   }, []);
 
-  /*
-   * Get current duration
-   */
-  const durationMinutes =
-    mode === "Focus"
-      ? focusMinutes
-      : mode === "Short Break"
-      ? shortBreakMinutes
-      : longBreakMinutes;
+  /* =========================
+     FILTER TASKS
+  ========================= */
 
-  const durationSeconds =
-    durationMinutes * 60;
+  const availableTasks = useMemo(() => {
+    const incompleteTasks = tasks.filter(
+      (task) => !task.completed
+    );
 
-  /*
-   * Selected task
-   */
-  const selectedTask =
-    tasks.find(
+    if (selectedProjectId === null) {
+      return incompleteTasks;
+    }
+
+    return incompleteTasks.filter(
       (task) =>
-        task.id === selectedTaskId
-    ) || null;
+        task.project_id === selectedProjectId
+    );
+  }, [tasks, selectedProjectId]);
 
-  /*
-   * Selected project
-   */
-  const selectedProject =
-    projects.find(
-      (project) =>
-        project.id === selectedProjectId
-    ) || null;
+  /* =========================
+     CURRENT DURATION
+  ========================= */
 
-  /*
-   * Timer
-   */
+  const currentDurationSeconds = useMemo(() => {
+    if (mode === "Focus") {
+      return focusMinutes * 60;
+    }
+
+    if (mode === "Short Break") {
+      return shortBreakMinutes * 60;
+    }
+
+    return longBreakMinutes * 60;
+  }, [
+    mode,
+    focusMinutes,
+    shortBreakMinutes,
+    longBreakMinutes,
+  ]);
+
+  /* =========================
+     TIMER PROGRESS
+  ========================= */
+
+  const progress =
+    currentDurationSeconds === 0
+      ? 0
+      : Math.max(
+          0,
+          Math.min(
+            100,
+            ((currentDurationSeconds -
+              secondsLeft) /
+              currentDurationSeconds) *
+              100
+          )
+        );
+
+  /* =========================
+     SAVE FOCUS SESSION
+  ========================= */
+
+  const saveFocusSession = async () => {
+    if (mode !== "Focus") {
+      return;
+    }
+
+    try {
+      setSavingSession(true);
+
+      const response = await fetch(
+        `${API_URL}/api/focus-sessions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            task_id: selectedTaskId,
+            project_id: selectedProjectId,
+            mode: "Focus",
+            duration_minutes: focusMinutes,
+            completed: true,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Failed to save focus session"
+        );
+      }
+
+      const savedSession =
+        await response.json();
+
+      console.log(
+        "Focus session saved:",
+        savedSession
+      );
+
+      setSessionMessage(
+        `Focus session saved — ${focusMinutes} minutes`
+      );
+
+      setSessionCount(
+        (current) => current + 1
+      );
+    } catch (error) {
+      console.error(
+        "Failed to save focus session:",
+        error
+      );
+
+      setSessionMessage(
+        "Session finished, but could not be saved."
+      );
+    } finally {
+      setSavingSession(false);
+    }
+  };
+
+  /* =========================
+     MOVE TO NEXT MODE
+  ========================= */
+
+  const moveToNextMode = () => {
+    if (mode === "Focus") {
+      const nextSessionCount =
+        sessionCount + 1;
+
+      if (nextSessionCount % 4 === 0) {
+        setMode("Long Break");
+        setSecondsLeft(
+          longBreakMinutes * 60
+        );
+      } else {
+        setMode("Short Break");
+        setSecondsLeft(
+          shortBreakMinutes * 60
+        );
+      }
+
+      return;
+    }
+
+    setMode("Focus");
+    setSecondsLeft(focusMinutes * 60);
+  };
+
+  /* =========================
+     TIMER
+  ========================= */
+
   useEffect(() => {
-    if (!running) {
+    if (!isRunning) {
       return;
     }
 
     const timer = setInterval(() => {
-      setSeconds((current) => {
+      setSecondsLeft((current) => {
         if (current <= 1) {
-          setRunning(false);
+          setIsRunning(false);
 
-          if (mode === "Focus") {
-            setSession(
-              (currentSession) =>
-                currentSession + 1
-            );
-          }
-
-          setMessage(
-            mode === "Focus"
-              ? selectedTask
-                ? `Focus session completed for "${selectedTask.title}".`
-                : "Focus session complete. Great work!"
-              : "Break complete. Ready to focus?"
-          );
-
-          return durationSeconds;
+          return 0;
         }
 
         return current - 1;
       });
     }, 1000);
 
-    return () =>
-      clearInterval(timer);
-  }, [
-    running,
-    mode,
-    durationSeconds,
-    selectedTask,
-  ]);
+    return () => clearInterval(timer);
+  }, [isRunning]);
 
-  /*
-   * Progress
-   */
-  const progress = useMemo(() => {
-    if (durationSeconds <= 0) {
-      return 0;
+  /* =========================
+     HANDLE TIMER COMPLETION
+  ========================= */
+
+  useEffect(() => {
+    if (
+      secondsLeft !== 0 ||
+      isRunning
+    ) {
+      return;
     }
 
-    return Math.min(
-      100,
-      Math.max(
-        0,
-        ((durationSeconds - seconds) /
-          durationSeconds) *
-          100
-      )
-    );
-  }, [
-    durationSeconds,
-    seconds,
-  ]);
+    const finishTimer = async () => {
+      if (mode === "Focus") {
+        await saveFocusSession();
+      } else {
+        setSessionMessage(
+          `${mode} finished.`
+        );
+      }
 
-  /*
-   * Format timer
-   */
+      moveToNextMode();
+    };
+
+    finishTimer();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft, isRunning]);
+
+  /* =========================
+     FORMAT TIME
+  ========================= */
+
   const formatTime = (
-    value: number
+    totalSeconds: number
   ) => {
     const minutes = Math.floor(
-      value / 60
+      totalSeconds / 60
     );
 
-    const remainingSeconds =
-      value % 60;
+    const seconds =
+      totalSeconds % 60;
 
     return `${String(minutes).padStart(
       2,
       "0"
-    )}:${String(
-      remainingSeconds
-    ).padStart(2, "0")}`;
+    )}:${String(seconds).padStart(
+      2,
+      "0"
+    )}`;
   };
 
-  /*
-   * Change mode
-   */
-  const changeMode = (
-    newMode: PomodoroMode
-  ) => {
-    setRunning(false);
+  /* =========================
+     START / PAUSE
+  ========================= */
 
-    setMode(newMode);
-
-    const newDuration =
-      newMode === "Focus"
-        ? focusMinutes
-        : newMode === "Short Break"
-        ? shortBreakMinutes
-        : longBreakMinutes;
-
-    setSeconds(
-      newDuration * 60
+  const toggleTimer = () => {
+    setSessionMessage("");
+    setIsRunning(
+      (current) => !current
     );
-
-    setMessage("");
   };
 
-  /*
-   * Reset timer
-   */
+  /* =========================
+     RESET
+  ========================= */
+
   const resetTimer = () => {
-    setRunning(false);
-
-    setSeconds(
-      durationMinutes * 60
+    setIsRunning(false);
+    setSecondsLeft(
+      currentDurationSeconds
     );
-
-    setMessage("");
+    setSessionMessage("");
   };
 
-  /*
-   * Skip session
-   */
-  const skipSession = () => {
-    const nextMode: PomodoroMode =
-      mode === "Focus"
-        ? "Short Break"
-        : mode === "Short Break"
-        ? "Long Break"
-        : "Focus";
+  /* =========================
+     SKIP
+  ========================= */
 
-    changeMode(nextMode);
+  const skipMode = () => {
+    setIsRunning(false);
+    setSessionMessage("");
 
-    setMessage(
-      `Switched to ${nextMode}.`
-    );
+    if (mode === "Focus") {
+      setMode("Short Break");
+      setSecondsLeft(
+        shortBreakMinutes * 60
+      );
+    } else {
+      setMode("Focus");
+      setSecondsLeft(
+        focusMinutes * 60
+      );
+    }
   };
 
-  /*
-   * Apply settings
-   */
+  /* =========================
+     CHANGE MODE
+  ========================= */
+
+  const changeMode = (
+    newMode: TimerMode
+  ) => {
+    setIsRunning(false);
+    setMode(newMode);
+    setSessionMessage("");
+
+    if (newMode === "Focus") {
+      setSecondsLeft(
+        focusMinutes * 60
+      );
+    } else if (
+      newMode === "Short Break"
+    ) {
+      setSecondsLeft(
+        shortBreakMinutes * 60
+      );
+    } else {
+      setSecondsLeft(
+        longBreakMinutes * 60
+      );
+    }
+  };
+
+  /* =========================
+     APPLY SETTINGS
+  ========================= */
+
   const applySettings = () => {
-    const safeFocus = Math.min(
-      120,
-      Math.max(1, focusMinutes)
-    );
+    setIsRunning(false);
 
-    const safeShortBreak =
-      Math.min(
-        60,
-        Math.max(1, shortBreakMinutes)
+    if (mode === "Focus") {
+      setSecondsLeft(
+        focusMinutes * 60
       );
-
-    const safeLongBreak =
-      Math.min(
-        120,
-        Math.max(1, longBreakMinutes)
+    } else if (
+      mode === "Short Break"
+    ) {
+      setSecondsLeft(
+        shortBreakMinutes * 60
       );
-
-    setFocusMinutes(safeFocus);
-
-    setShortBreakMinutes(
-      safeShortBreak
-    );
-
-    setLongBreakMinutes(
-      safeLongBreak
-    );
-
-    setRunning(false);
-
-    const newDuration =
-      mode === "Focus"
-        ? safeFocus
-        : mode === "Short Break"
-        ? safeShortBreak
-        : safeLongBreak;
-
-    setSeconds(
-      newDuration * 60
-    );
+    } else {
+      setSecondsLeft(
+        longBreakMinutes * 60
+      );
+    }
 
     setShowSettings(false);
-
-    setMessage(
-      "Timer settings updated."
-    );
+    setSessionMessage("");
   };
 
-  /*
-   * Select task
-   */
-  const handleTaskChange = (
-    value: string
-  ) => {
-    if (value === "") {
-      setSelectedTaskId("");
+  /* =========================
+     PROJECT CHANGE
+  ========================= */
 
-      return;
-    }
-
-    const taskId =
-      Number(value);
-
-    setSelectedTaskId(taskId);
-
-    const task = tasks.find(
-      (item) =>
-        item.id === taskId
-    );
-
-    if (
-      task &&
-      task.project_id !== null
-    ) {
-      setSelectedProjectId(
-        task.project_id
-      );
-    }
-
-    setMessage("");
-  };
-
-  /*
-   * Select project
-   */
   const handleProjectChange = (
     value: string
   ) => {
-    if (value === "") {
-      setSelectedProjectId("");
+    const projectId =
+      value === ""
+        ? null
+        : Number(value);
 
-      return;
+    setSelectedProjectId(projectId);
+
+    setSelectedTaskId(null);
+  };
+
+  /* =========================
+     TASK CHANGE
+  ========================= */
+
+  const handleTaskChange = (
+    value: string
+  ) => {
+    const taskId =
+      value === ""
+        ? null
+        : Number(value);
+
+    setSelectedTaskId(taskId);
+
+    if (taskId !== null) {
+      const selectedTask =
+        tasks.find(
+          (task) => task.id === taskId
+        );
+
+      if (
+        selectedTask &&
+        selectedTask.project_id !== null
+      ) {
+        setSelectedProjectId(
+          selectedTask.project_id
+        );
+      }
     }
-
-    setSelectedProjectId(
-      Number(value)
-    );
-
-    setMessage("");
   };
 
   return (
-    <section className="focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-
+    <section className="rounded-3xl border border-white/10 bg-[#101827] p-6 shadow-xl">
       {/* HEADER */}
 
-      <div className="flex items-center justify-between">
-
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-cyan-400">
+          <p className="text-sm text-gray-500">
             Focus Timer
           </p>
 
-          <h2 className="mt-1 text-lg font-bold text-white">
+          <h2 className="mt-1 text-xl font-bold text-white">
             Pomodoro
           </h2>
         </div>
 
-        <div className="flex items-center gap-2">
-
-          <span className="rounded-lg bg-cyan-400/10 px-2 py-1 text-[10px] text-cyan-400">
-            Session {session}
-          </span>
-
-          <button
-            onClick={() =>
-              setShowSettings(
-                (current) => !current
-              )
-            }
-            className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-gray-400 transition hover:bg-white/5 hover:text-white"
-            title="Timer settings"
-          >
-            ⚙
-          </button>
-
-        </div>
-
+        <button
+          type="button"
+          onClick={() =>
+            setShowSettings(
+              (current) => !current
+            )
+          }
+          className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-gray-300 transition hover:bg-white/10"
+        >
+          Settings
+        </button>
       </div>
 
-      {/* WORK ITEM SELECTION */}
+      {/* MODE BUTTONS */}
 
-      <div className="mt-5 grid gap-3">
+      <div className="mt-6 grid grid-cols-3 gap-2">
+        {(
+          [
+            "Focus",
+            "Short Break",
+            "Long Break",
+          ] as TimerMode[]
+        ).map((timerMode) => (
+          <button
+            key={timerMode}
+            type="button"
+            onClick={() =>
+              changeMode(timerMode)
+            }
+            className={`rounded-xl px-3 py-2 text-xs font-medium transition ${
+              mode === timerMode
+                ? "bg-cyan-500 text-black"
+                : "bg-white/5 text-gray-400 hover:bg-white/10"
+            }`}
+          >
+            {timerMode}
+          </button>
+        ))}
+      </div>
 
-        {/* PROJECT */}
+      {/* WORK SELECTION */}
 
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-gray-500">
+          <label className="mb-2 block text-xs font-medium text-gray-400">
             Project
           </label>
 
           <select
-            value={selectedProjectId}
+            value={
+              selectedProjectId ?? ""
+            }
             onChange={(event) =>
               handleProjectChange(
                 event.target.value
               )
             }
-            disabled={
-              loadingWorkItems
-            }
-            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-white outline-none transition focus:border-cyan-400/50"
+            disabled={loadingWorkItems}
+            className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-3 text-sm text-white outline-none focus:border-cyan-400"
           >
-            <option
-              value=""
-              className="bg-[#11151f]"
-            >
+            <option value="">
               No project
             </option>
 
-            {projects.map(
-              (project) => (
-                <option
-                  key={project.id}
-                  value={project.id}
-                  className="bg-[#11151f]"
-                >
-                  {project.name}
-                </option>
-              )
-            )}
+            {projects.map((project) => (
+              <option
+                key={project.id}
+                value={project.id}
+              >
+                {project.name}
+              </option>
+            ))}
           </select>
         </div>
 
-        {/* TASK */}
-
         <div>
-          <label className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-gray-500">
+          <label className="mb-2 block text-xs font-medium text-gray-400">
             Task
           </label>
 
           <select
-            value={selectedTaskId}
+            value={
+              selectedTaskId ?? ""
+            }
             onChange={(event) =>
               handleTaskChange(
                 event.target.value
               )
             }
-            disabled={
-              loadingWorkItems
-            }
-            className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-white outline-none transition focus:border-cyan-400/50"
+            disabled={loadingWorkItems}
+            className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-3 text-sm text-white outline-none focus:border-cyan-400"
           >
-            <option
-              value=""
-              className="bg-[#11151f]"
-            >
-              No task selected
+            <option value="">
+              No task
             </option>
 
-            {tasks
-              .filter(
-                (task) =>
-                  !task.completed &&
-                  (selectedProjectId ===
-                    "" ||
-                    task.project_id ===
-                      selectedProjectId)
-              )
-              .map((task) => (
-                <option
-                  key={task.id}
-                  value={task.id}
-                  className="bg-[#11151f]"
-                >
-                  {task.title}
-                </option>
-              ))}
+            {availableTasks.map((task) => (
+              <option
+                key={task.id}
+                value={task.id}
+              >
+                {task.title}
+              </option>
+            ))}
           </select>
         </div>
-
       </div>
 
       {/* SELECTED WORK */}
 
-      {(selectedTask ||
-        selectedProject) && (
-        <div className="mt-3 rounded-xl border border-cyan-400/10 bg-cyan-400/5 px-3 py-2">
+      {(selectedTaskId !== null ||
+        selectedProjectId !== null) && (
+        <div className="mt-4 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+          <p className="text-xs text-gray-500">
+            Current work
+          </p>
 
-          {selectedProject && (
-            <p className="text-[10px] text-cyan-400">
-              Project:{" "}
-              <span className="font-semibold">
-                {selectedProject.name}
-              </span>
-            </p>
-          )}
+          <p className="mt-1 text-sm text-white">
+            {selectedTaskId !== null
+              ? tasks.find(
+                  (task) =>
+                    task.id ===
+                    selectedTaskId
+                )?.title ||
+                "Selected task"
+              : "Project focus"}
+          </p>
+        </div>
+      )}
 
-          {selectedTask && (
-            <p className="mt-1 text-[10px] text-gray-400">
-              Task:{" "}
-              <span className="font-semibold text-white">
-                {selectedTask.title}
-              </span>
-            </p>
-          )}
+      {/* TIMER */}
 
+      <div className="mt-8 text-center">
+        <p className="text-sm text-gray-500">
+          {mode}
+        </p>
+
+        <div className="mt-3 text-6xl font-bold tracking-tight text-white sm:text-7xl">
+          {formatTime(secondsLeft)}
+        </div>
+
+        <div className="mt-6 h-2 overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+            style={{
+              width: `${progress}%`,
+            }}
+          />
+        </div>
+
+        <p className="mt-3 text-xs text-gray-500">
+          Focus sessions completed:{" "}
+          {sessionCount}
+        </p>
+      </div>
+
+      {/* CONTROLS */}
+
+      <div className="mt-7 flex flex-wrap justify-center gap-3">
+        <button
+          type="button"
+          onClick={toggleTimer}
+          disabled={savingSession}
+          className="rounded-xl bg-cyan-500 px-6 py-3 font-semibold text-black transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isRunning
+            ? "Pause"
+            : "Start"}
+        </button>
+
+        <button
+          type="button"
+          onClick={resetTimer}
+          className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm text-gray-300 transition hover:bg-white/10"
+        >
+          Reset
+        </button>
+
+        <button
+          type="button"
+          onClick={skipMode}
+          className="rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm text-gray-300 transition hover:bg-white/10"
+        >
+          Skip
+        </button>
+      </div>
+
+      {/* SESSION MESSAGE */}
+
+      {sessionMessage && (
+        <div className="mt-5 rounded-xl border border-cyan-400/20 bg-cyan-400/5 px-4 py-3 text-center text-sm text-cyan-300">
+          {sessionMessage}
         </div>
       )}
 
       {/* SETTINGS */}
 
       {showSettings && (
-        <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
-
-          <p className="text-xs font-semibold text-white">
+        <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
+          <h3 className="font-semibold text-white">
             Timer Settings
-          </p>
+          </h3>
 
-          <p className="mt-1 text-[10px] text-gray-600">
-            Set your preferred session durations in minutes.
-          </p>
-
-          <div className="mt-4 grid grid-cols-3 gap-3">
-
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="text-[10px] text-gray-500">
+              <label className="mb-2 block text-xs text-gray-400">
                 Focus
               </label>
 
               <input
                 type="number"
-                min={1}
-                max={120}
+                min="1"
+                max="180"
                 value={focusMinutes}
                 onChange={(event) =>
                   setFocusMinutes(
-                    Number(
-                      event.target.value
+                    Math.max(
+                      1,
+                      Number(
+                        event.target.value
+                      )
                     )
                   )
                 }
-                className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400/50"
+                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-white outline-none"
               />
             </div>
 
             <div>
-              <label className="text-[10px] text-gray-500">
+              <label className="mb-2 block text-xs text-gray-400">
                 Short Break
               </label>
 
               <input
                 type="number"
-                min={1}
-                max={60}
-                value={
-                  shortBreakMinutes
-                }
+                min="1"
+                max="60"
+                value={shortBreakMinutes}
                 onChange={(event) =>
                   setShortBreakMinutes(
-                    Number(
-                      event.target.value
+                    Math.max(
+                      1,
+                      Number(
+                        event.target.value
+                      )
                     )
                   )
                 }
-                className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400/50"
+                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-white outline-none"
               />
             </div>
 
             <div>
-              <label className="text-[10px] text-gray-500">
+              <label className="mb-2 block text-xs text-gray-400">
                 Long Break
               </label>
 
               <input
                 type="number"
-                min={1}
-                max={120}
-                value={
-                  longBreakMinutes
-                }
+                min="1"
+                max="60"
+                value={longBreakMinutes}
                 onChange={(event) =>
                   setLongBreakMinutes(
-                    Number(
-                      event.target.value
+                    Math.max(
+                      1,
+                      Number(
+                        event.target.value
+                      )
                     )
                   )
                 }
-                className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white outline-none focus:border-cyan-400/50"
+                className="w-full rounded-xl border border-white/10 bg-[#0b0f14] px-3 py-2 text-white outline-none"
               />
             </div>
-
           </div>
 
           <button
+            type="button"
             onClick={applySettings}
-            className="mt-4 w-full rounded-xl bg-cyan-400 px-4 py-2.5 text-xs font-bold text-black transition hover:bg-cyan-300"
+            className="mt-5 w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-gray-200"
           >
             Apply Settings
           </button>
-
         </div>
       )}
-
-      {/* MODE BUTTONS */}
-
-      <div className="mt-5 grid grid-cols-3 gap-2">
-
-        {(
-          [
-            "Focus",
-            "Short Break",
-            "Long Break",
-          ] as PomodoroMode[]
-        ).map((item) => (
-
-          <button
-            key={item}
-            onClick={() =>
-              changeMode(item)
-            }
-            className={`rounded-xl px-2 py-2 text-[10px] font-semibold transition ${
-              mode === item
-                ? "bg-cyan-400 text-black"
-                : "border border-white/10 bg-white/[0.03] text-gray-500 hover:bg-white/5 hover:text-white"
-            }`}
-          >
-            {item}
-          </button>
-
-        ))}
-
-      </div>
-
-      {/* TIMER */}
-
-      <div className="py-7 text-center">
-
-        <div className="text-5xl font-black tracking-wider text-white">
-          {formatTime(seconds)}
-        </div>
-
-        <p className="mt-2 text-xs text-gray-600">
-          {mode === "Focus"
-            ? selectedTask
-              ? `Working on: ${selectedTask.title}`
-              : "Stay focused"
-            : "Take a break"}
-        </p>
-
-      </div>
-
-      {/* PROGRESS */}
-
-      <div className="mb-5 h-1.5 overflow-hidden rounded-full bg-white/5">
-
-        <div
-          className="h-full rounded-full bg-cyan-400 transition-all duration-500"
-          style={{
-            width: `${progress}%`,
-          }}
-        />
-
-      </div>
-
-      {/* MESSAGE */}
-
-      {message && (
-        <div className="mb-4 rounded-xl border border-cyan-400/10 bg-cyan-400/5 px-3 py-2 text-center text-[10px] text-cyan-400">
-          {message}
-        </div>
-      )}
-
-      {/* CONTROLS */}
-
-      <div className="flex gap-2">
-
-        <button
-          onClick={() =>
-            setRunning(
-              (current) => !current
-            )
-          }
-          className="flex-1 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-black shadow-lg shadow-cyan-400/10 transition hover:bg-cyan-300 active:scale-[0.98]"
-        >
-          {running
-            ? "Pause"
-            : seconds < durationSeconds
-            ? "Resume"
-            : "Start"}
-        </button>
-
-        <button
-          onClick={resetTimer}
-          className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-400 transition hover:bg-white/5 hover:text-white"
-        >
-          Reset
-        </button>
-
-        <button
-          onClick={skipSession}
-          className="rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-400 transition hover:bg-white/5 hover:text-white"
-        >
-          Skip
-        </button>
-
-      </div>
-
     </section>
   );
 }
