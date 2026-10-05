@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-
+from datetime import datetime, timedelta
 from pydantic import BaseModel
 
 from sqlalchemy import inspect, text
@@ -16,7 +16,34 @@ from models import Task, Project, Note, Goal, FocusSession
 
 Base.metadata.create_all(bind=engine)
 
+# ==================================================
+# DATABASE MIGRATION — FOCUS SESSION TIMESTAMP
+# ==================================================
 
+try:
+    inspector = inspect(engine)
+
+    focus_session_columns = [
+        column["name"]
+        for column in inspector.get_columns("focus_sessions")
+    ]
+
+    if "created_at" not in focus_session_columns:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    ALTER TABLE focus_sessions
+                    ADD COLUMN created_at DATETIME
+                    """
+                )
+            )
+
+except Exception as migration_error:
+    print(
+        "FocusSession migration warning:",
+        migration_error
+    )
 # ==================================================
 # DATABASE MIGRATION
 # ==================================================
@@ -907,4 +934,67 @@ def get_focus_session_stats(
     return {
         "total_sessions": total_sessions,
         "total_minutes": total_minutes,
+    }
+    # ==================================================
+# WEEKLY FOCUS ANALYTICS
+# ==================================================
+
+@app.get("/api/focus-sessions/weekly")
+def get_weekly_focus_analytics(
+    db: Session = Depends(get_db)
+):
+    today = datetime.utcnow().date()
+
+    # Monday = 0, Sunday = 6
+    week_start = today - timedelta(days=today.weekday())
+
+    week_end = week_start + timedelta(days=6)
+
+    sessions = (
+        db.query(FocusSession)
+        .filter(
+            FocusSession.mode == "Focus",
+            FocusSession.completed == True,
+            FocusSession.created_at != None
+        )
+        .all()
+    )
+
+    daily_data = []
+
+    total_sessions = 0
+    total_minutes = 0
+
+    for day_offset in range(7):
+        current_date = week_start + timedelta(days=day_offset)
+
+        day_sessions = [
+            session
+            for session in sessions
+            if session.created_at.date() == current_date
+        ]
+
+        session_count = len(day_sessions)
+
+        minutes = sum(
+            session.duration_minutes
+            for session in day_sessions
+        )
+
+        total_sessions += session_count
+        total_minutes += minutes
+
+        daily_data.append({
+            "date": current_date.isoformat(),
+            "day": current_date.strftime("%a"),
+            "minutes": minutes,
+            "sessions": session_count,
+        })
+
+    return {
+        "week_start": week_start.isoformat(),
+        "week_end": week_end.isoformat(),
+        "total_sessions": total_sessions,
+        "total_minutes": total_minutes,
+        "daily": daily_data,
     }
