@@ -1,6 +1,7 @@
 ﻿"use client";
 import FocusStats from "./FocusStats";  
 import FocusAnalytics from "./FocusAnalytics";
+import FocusStreak from "./FocusStreak";
 import { useEffect, useMemo, useState } from "react";
 
 import TaskManager from "./TaskManager";
@@ -1689,7 +1690,9 @@ export default function Home() {
 
               </section>
                     <FocusStats />
+                    <FocusStreak />
                     <FocusAnalytics />
+
               {/* MAIN GRID */}
 
               <div className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">

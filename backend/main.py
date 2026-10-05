@@ -998,3 +998,110 @@ def get_weekly_focus_analytics(
         "total_minutes": total_minutes,
         "daily": daily_data,
     }
+
+# ==================================================
+# FOCUS STREAK ANALYTICS
+# ==================================================
+
+@app.get("/api/focus-sessions/streak")
+def get_focus_streak(
+    db: Session = Depends(get_db)
+):
+    sessions = (
+        db.query(FocusSession)
+        .filter(
+            FocusSession.mode == "Focus",
+            FocusSession.completed == True,
+            FocusSession.created_at != None
+        )
+        .all()
+    )
+
+    # Get unique focus dates
+    focus_dates = sorted(
+        {
+            session.created_at.date()
+            for session in sessions
+        },
+        reverse=True
+    )
+
+    if not focus_dates:
+        return {
+            "current_streak": 0,
+            "best_streak": 0,
+            "today_completed": False,
+            "focus_dates": [],
+        }
+
+    today = datetime.utcnow().date()
+
+    focus_date_set = set(focus_dates)
+
+    today_completed = today in focus_date_set
+
+    # ----------------------------------------------
+    # CURRENT STREAK
+    # ----------------------------------------------
+
+    current_streak = 0
+
+    check_date = today
+
+    while check_date in focus_date_set:
+        current_streak += 1
+        check_date -= timedelta(days=1)
+
+    # If there was no session today, allow the streak
+    # to continue from yesterday.
+    if not today_completed:
+        yesterday = today - timedelta(days=1)
+
+        if yesterday in focus_date_set:
+            current_streak = 0
+            check_date = yesterday
+
+            while check_date in focus_date_set:
+                current_streak += 1
+                check_date -= timedelta(days=1)
+        else:
+            current_streak = 0
+
+    # ----------------------------------------------
+    # BEST STREAK
+    # ----------------------------------------------
+
+    best_streak = 0
+    running_streak = 0
+    previous_date = None
+
+    for focus_date in sorted(focus_dates):
+
+        if previous_date is not None:
+            difference = (
+                focus_date - previous_date
+            ).days
+
+            if difference == 1:
+                running_streak += 1
+            else:
+                running_streak = 1
+        else:
+            running_streak = 1
+
+        best_streak = max(
+            best_streak,
+            running_streak
+        )
+
+        previous_date = focus_date
+
+    return {
+        "current_streak": current_streak,
+        "best_streak": best_streak,
+        "today_completed": today_completed,
+        "focus_dates": [
+            focus_date.isoformat()
+            for focus_date in focus_dates
+        ],
+    }
