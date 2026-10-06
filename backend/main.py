@@ -889,6 +889,7 @@ def create_focus_session(
 
 
 @app.get("/api/focus-sessions")
+@app.get("/api/focus-sessions")
 def get_focus_sessions(
     db: Session = Depends(get_db)
 ):
@@ -906,6 +907,11 @@ def get_focus_sessions(
             "mode": session.mode,
             "duration_minutes": session.duration_minutes,
             "completed": session.completed,
+            "created_at": (
+                session.created_at.isoformat()
+                if session.created_at
+                else None
+            ),
         }
         for session in sessions
     ]
