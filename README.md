@@ -126,3 +126,17 @@ Backend API: https://focusspace-api.onrender.com
                                   SQLAlchemy
                                       |
                                    SQLite
+
+## Screenshots
+
+### Dashboard
+
+![FocusSpace Dashboard](screenshots/dashboard.png.png)
+
+### Focus Streak
+
+![Focus Streak](screenshots/focus-streak.png.png)
+
+### Pomodoro Timer
+
+![Pomodoro Timer](screenshots/pomodoro.png.png)
