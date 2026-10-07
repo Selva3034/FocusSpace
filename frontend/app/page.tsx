@@ -2447,8 +2447,43 @@ function StatCard({
   subtitle: string;
   icon: string;
 }) {
+  const [displayValue, setDisplayValue] = useState(0);
+  const [hasEntered, setHasEntered] = useState(false);
+
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (prefersReducedMotion) {
+      setDisplayValue(value);
+      setHasEntered(true);
+      return;
+    }
+
+    const duration = 650;
+    const startTime = performance.now();
+    let animationFrame = 0;
+
+    const animateValue = (currentTime: number) => {
+      const progress = Math.min((currentTime - startTime) / duration, 1);
+      const easedProgress = 1 - Math.pow(1 - progress, 3);
+
+      setDisplayValue(Math.round(value * easedProgress));
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animateValue);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animateValue);
+    setHasEntered(true);
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [value]);
+
   return (
-    <div className="focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5 transition hover:border-cyan-400/20 hover:bg-white/[0.04]">
+    <div className="focus-card group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/30 hover:bg-cyan-400/[0.04] hover:shadow-[0_16px_35px_-22px_rgba(34,211,238,0.75)]">
 
       <div className="flex items-start justify-between">
 
@@ -2459,7 +2494,7 @@ function StatCard({
           </p>
 
           <p className="mt-2 text-3xl font-black">
-            {value}
+            {displayValue}
           </p>
 
           <p className="mt-1 text-[11px] text-gray-600">
@@ -2468,10 +2503,20 @@ function StatCard({
 
         </div>
 
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-400">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-400 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6">
           {icon}
         </div>
 
+      </div>
+
+      <div
+        className="mt-5 h-1 overflow-hidden rounded-full bg-cyan-400/10"
+        aria-hidden="true"
+      >
+        <div
+          className="h-full origin-left rounded-full bg-gradient-to-r from-cyan-400/40 via-cyan-300 to-cyan-400 transition-transform duration-700 ease-out"
+          style={{ transform: `scaleX(${hasEntered ? 1 : 0})` }}
+        />
       </div>
 
     </div>
