@@ -563,6 +563,159 @@ button:disabled {
 }
 
 /* =========================================================
+   DASHBOARD MOTION AND INTERACTION
+   ========================================================= */
+
+@keyframes dashboard-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes completion-pop {
+  0% {
+    transform: scale(0.82);
+  }
+
+  65% {
+    transform: scale(1.12);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes progress-fill {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.dashboard-enter > * {
+  animation: dashboard-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.dashboard-enter > *:nth-child(1) { animation-delay: 30ms; }
+.dashboard-enter > *:nth-child(2) { animation-delay: 90ms; }
+.dashboard-enter > *:nth-child(3) { animation-delay: 150ms; }
+.dashboard-enter > *:nth-child(4) { animation-delay: 210ms; }
+.dashboard-enter > *:nth-child(5) { animation-delay: 270ms; }
+
+.dashboard-stat {
+  animation: dashboard-enter 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.dashboard-stat:nth-child(1) { animation-delay: 80ms; }
+.dashboard-stat:nth-child(2) { animation-delay: 140ms; }
+.dashboard-stat:nth-child(3) { animation-delay: 200ms; }
+.dashboard-stat:nth-child(4) { animation-delay: 260ms; }
+
+.dashboard-section {
+  will-change: transform, opacity;
+}
+
+.dashboard-item {
+  transition-duration: 220ms;
+}
+
+.dashboard-item:hover {
+  transform: translateY(-3px);
+}
+
+.progress-fill {
+  transform-origin: left center;
+  animation: progress-fill 850ms 130ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.28);
+}
+
+.task-row {
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease,
+    opacity 260ms ease;
+}
+
+.task-row:hover {
+  transform: translateX(2px);
+}
+
+.task-row.is-complete {
+  background: rgba(74, 222, 128, 0.035);
+}
+
+.task-check {
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.task-check:hover {
+  transform: scale(1.08);
+}
+
+.task-row.is-complete .task-check {
+  animation: completion-pop 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.09);
+}
+
+.quick-action {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid transparent;
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.quick-action::after {
+  content: "";
+  position: absolute;
+  inset: auto -25% -65% 28%;
+  height: 90%;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.16), transparent 68%);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.quick-action:hover,
+.quick-action:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(34, 211, 238, 0.22);
+  box-shadow: 0 14px 24px -19px rgba(34, 211, 238, 0.7);
+}
+
+.quick-action:hover::after,
+.quick-action:focus-visible::after {
+  opacity: 1;
+}
+
+.quick-action-icon {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms ease;
+}
+
+.quick-action:hover .quick-action-icon,
+.quick-action:focus-visible .quick-action-icon {
+  transform: scale(1.16) rotate(-6deg);
+  color: #a5f3fc;
+}
+
+/* =========================================================
    DASHBOARD METRIC CARDS
    ========================================================= */
 

@@ -111,27 +111,27 @@ const navigationItems: {
 }[] = [
   {
     name: "Dashboard",
-    icon: "âŒ‚",
+    icon: "⌂",
     description: "Overview",
   },
   {
     name: "Tasks",
-    icon: "âœ“",
+    icon: "✓",
     description: "Your tasks",
   },
   {
     name: "Projects",
-    icon: "â–£",
+    icon: "▣",
     description: "Workspaces",
   },
   {
     name: "Notes",
-    icon: "âœŽ",
+    icon: "✎",
     description: "Your notes",
   },
   {
     name: "Goals",
-    icon: "â—Ž",
+    icon: "◎",
     description: "Track goals",
   },
 ];
@@ -822,7 +822,7 @@ export default function Home() {
             type: "Task",
             id: task.id,
             title: task.title,
-            subtitle: `Task â€¢ ${projectName}`,
+            subtitle: `Task · ${projectName}`,
           });
         }
       });
@@ -866,7 +866,7 @@ export default function Home() {
             type: "Note",
             id: note.id,
             title: note.title,
-            subtitle: `Note â€¢ ${projectName}`,
+            subtitle: `Note · ${projectName}`,
           });
         }
       });
@@ -1066,7 +1066,7 @@ export default function Home() {
               </div>
 
               <span className="text-xs text-gray-600">
-                â‹®
+                ⋮
               </span>
 
             </div>
@@ -1245,7 +1245,7 @@ export default function Home() {
               </div>
 
               <span className="text-xs text-gray-600">
-                â‹®
+                ⋮
               </span>
 
             </div>
@@ -1400,7 +1400,7 @@ export default function Home() {
 
           const icon =
             toast.type === "success"
-              ? "âœ“"
+              ? "✓"
               : toast.type === "error"
               ? "!"
               : "i";
@@ -1442,7 +1442,7 @@ export default function Home() {
                 }
                 className="text-gray-500 transition hover:text-white"
               >
-                âœ•
+                ×
               </button>
 
             </div>
@@ -1466,7 +1466,7 @@ export default function Home() {
           {activeMenu ===
             "Dashboard" && (
 
-            <div className="mx-auto max-w-7xl">
+            <div className="dashboard-enter mx-auto max-w-7xl">
 
               {/* HEADER */}
 
@@ -1498,7 +1498,7 @@ export default function Home() {
                     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 transition focus-within:border-cyan-400/30">
 
                       <span className="text-gray-500">
-                        âŒ•
+                        ⌕
                       </span>
 
                       <input
@@ -1519,7 +1519,7 @@ export default function Home() {
                           }
                           className="text-gray-500 hover:text-white"
                         >
-                          âœ•
+                          ×
                         </button>
                       )}
 
@@ -1547,19 +1547,19 @@ export default function Home() {
                                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-400">
                                   {result.type ===
                                     "Task" &&
-                                    "âœ“"}
+                                    "✓"}
 
                                   {result.type ===
                                     "Project" &&
-                                    "â–£"}
+                                    "▣"}
 
                                   {result.type ===
                                     "Note" &&
-                                    "âœŽ"}
+                                    "✎"}
 
                                   {result.type ===
                                     "Goal" &&
-                                    "â—Ž"}
+                                    "◎"}
                                 </div>
 
                                 <div className="min-w-0">
@@ -1613,35 +1613,35 @@ export default function Home() {
                   title="Total Tasks"
                   value={totalTasks}
                   subtitle={`${completedTasks} completed`}
-                  icon="âœ“"
+                  icon="✓"
                 />
 
                 <StatCard
                   title="Pending Tasks"
                   value={pendingTasks}
                   subtitle={`${highPriorityTasks} high priority`}
-                  icon="â—·"
+                  icon="◷"
                 />
 
                 <StatCard
                   title="Projects"
                   value={projects.length}
                   subtitle={`${activeProjects} active`}
-                  icon="â–£"
+                  icon="▣"
                 />
 
                 <StatCard
                   title="Goals"
                   value={goals.length}
                   subtitle={`${activeGoals} active`}
-                  icon="â—Ž"
+                  icon="◎"
                 />
 
               </div>
 
               {/* QUICK ADD */}
 
-              <section className="mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <section className="dashboard-section mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                 <div className="mb-4">
 
@@ -1729,7 +1729,7 @@ export default function Home() {
                         }
                         className="text-xs font-semibold text-cyan-400 hover:text-cyan-300"
                       >
-                        View all â†’
+                        View all →
                       </button>
 
                     </div>
@@ -1859,7 +1859,7 @@ export default function Home() {
 
                             <div
                               key={task.id}
-                              className="group flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-3 transition hover:border-white/10 hover:bg-white/[0.04]"
+                              className={`task-row group flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-3 transition hover:border-white/10 hover:bg-white/[0.04] ${task.completed ? "is-complete" : ""}`}
                             >
 
                               <button
@@ -1868,14 +1868,15 @@ export default function Home() {
                                     task
                                   )
                                 }
-                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-xs transition ${
+                                aria-label={task.completed ? `Mark ${task.title} as incomplete` : `Complete ${task.title}`}
+                                className={`task-check flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-xs transition ${
                                   task.completed
                                     ? "border-green-400 bg-green-400 text-black"
                                     : "border-gray-600 hover:border-cyan-400"
                                 }`}
                               >
                                 {task.completed
-                                  ? "âœ“"
+                                  ? "✓"
                                   : ""}
                               </button>
 
@@ -1902,7 +1903,7 @@ export default function Home() {
                                   </span>
 
                                   <span className="text-[10px] text-gray-700">
-                                    â€¢
+                                    ·
                                   </span>
 
                                   <span className="text-[10px] text-gray-600">
@@ -1939,7 +1940,7 @@ export default function Home() {
                                 }
                                 className="text-xs text-gray-700 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
                               >
-                                âœ•
+                                ×
                               </button>
 
                             </div>
@@ -1963,7 +1964,7 @@ export default function Home() {
 
                   {/* QUICK ACTIONS */}
 
-                  <section className="focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                  <section className="dashboard-section focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                     <h2 className="text-lg font-bold">
                       Quick Actions
@@ -1972,7 +1973,7 @@ export default function Home() {
                     <div className="mt-4 grid grid-cols-2 gap-3">
 
                       <QuickAction
-                        icon="âœ“"
+                        icon="✓"
                         title="Tasks"
                         subtitle="Manage tasks"
                         onClick={() =>
@@ -1983,7 +1984,7 @@ export default function Home() {
                       />
 
                       <QuickAction
-                        icon="â–£"
+                        icon="▣"
                         title="Projects"
                         subtitle="Manage projects"
                         onClick={() =>
@@ -1994,7 +1995,7 @@ export default function Home() {
                       />
 
                       <QuickAction
-                        icon="âœŽ"
+                        icon="✎"
                         title="Notes"
                         subtitle="Capture ideas"
                         onClick={() =>
@@ -2005,7 +2006,7 @@ export default function Home() {
                       />
 
                       <QuickAction
-                        icon="â—Ž"
+                        icon="◎"
                         title="Goals"
                         subtitle="Track goals"
                         onClick={() =>
@@ -2025,7 +2026,7 @@ export default function Home() {
 
               {/* PROJECTS */}
 
-              <section className="mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <section className="dashboard-section mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                 <div className="flex items-center justify-between">
 
@@ -2049,7 +2050,7 @@ export default function Home() {
                     }
                     className="text-xs font-semibold text-cyan-400 transition hover:text-cyan-300"
                   >
-                    View all â†’
+                    View all →
                   </button>
 
                 </div>
@@ -2102,7 +2103,7 @@ export default function Home() {
                               key={
                                 project.id
                               }
-                              className="focus-card rounded-2xl border border-white/5 bg-white/[0.02] p-4"
+                              className="dashboard-item focus-card rounded-2xl border border-white/5 bg-white/[0.02] p-4"
                             >
 
                               <div className="flex items-start justify-between gap-3">
@@ -2135,7 +2136,7 @@ export default function Home() {
                               <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
 
                                 <div
-                                  className="h-full rounded-full bg-cyan-400 transition-all"
+                                  className="progress-fill h-full rounded-full bg-cyan-400"
                                   style={{
                                     width: `${progress.progress}%`,
                                   }}
@@ -2166,7 +2167,7 @@ export default function Home() {
 
               {/* GOALS */}
 
-              <section className="mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <section className="dashboard-section mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                 <div className="flex items-center justify-between">
 
@@ -2190,7 +2191,7 @@ export default function Home() {
                     }
                     className="text-xs font-semibold text-cyan-400 transition hover:text-cyan-300"
                   >
-                    View all â†’
+                    View all →
                   </button>
 
                 </div>
@@ -2233,7 +2234,7 @@ export default function Home() {
 
                         <div
                           key={goal.id}
-                          className="focus-card rounded-2xl border border-white/5 bg-white/[0.02] p-4"
+                          className="dashboard-item focus-card rounded-2xl border border-white/5 bg-white/[0.02] p-4"
                         >
 
                           <div className="flex items-start justify-between gap-3">
@@ -2266,7 +2267,7 @@ export default function Home() {
                           <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5">
 
                             <div
-                              className="h-full rounded-full bg-cyan-400"
+                              className="progress-fill h-full rounded-full bg-cyan-400"
                               style={{
                                 width: `${goal.progress}%`,
                               }}
@@ -2302,7 +2303,7 @@ export default function Home() {
 
               {/* NOTES */}
 
-              <section className="mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+              <section className="dashboard-section mt-6 focus-card rounded-3xl border border-white/10 bg-white/[0.03] p-5">
 
                 <div className="flex items-center justify-between">
 
@@ -2326,7 +2327,7 @@ export default function Home() {
                     }
                     className="text-xs font-semibold text-cyan-400 transition hover:text-cyan-300"
                   >
-                    View all â†’
+                    View all →
                   </button>
 
                 </div>
@@ -2483,7 +2484,7 @@ function StatCard({
   }, [value]);
 
   return (
-    <div className="focus-card group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/30 hover:bg-cyan-400/[0.04] hover:shadow-[0_16px_35px_-22px_rgba(34,211,238,0.75)]">
+    <div className="dashboard-stat focus-card group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/30 hover:bg-cyan-400/[0.04] hover:shadow-[0_16px_35px_-22px_rgba(34,211,238,0.75)]">
 
       <div className="flex items-start justify-between">
 
@@ -2541,10 +2542,10 @@ function QuickAction({
   return (
     <button
       onClick={onClick}
-      className="rounded-2xl bg-white/5 p-4 text-left transition hover:bg-white/10"
+      className="quick-action group rounded-2xl bg-white/5 p-4 text-left transition hover:bg-white/10"
     >
 
-      <div className="text-cyan-400">
+      <div className="quick-action-icon text-cyan-400">
         {icon}
       </div>
 
