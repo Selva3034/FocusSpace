@@ -1859,7 +1859,7 @@ export default function Home() {
 
                             <div
                               key={task.id}
-                              className={`task-row group flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-3 transition hover:border-white/10 hover:bg-white/[0.04] ${task.completed ? "is-complete" : ""}`}
+                              className={`task-row group flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-3 ${task.completed ? "is-complete" : "is-active"}`}
                             >
 
                               <button
@@ -1869,21 +1869,22 @@ export default function Home() {
                                   )
                                 }
                                 aria-label={task.completed ? `Mark ${task.title} as incomplete` : `Complete ${task.title}`}
-                                className={`task-check flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border text-xs transition ${
+                                aria-pressed={task.completed}
+                                className={`task-check flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-xs ${
                                   task.completed
                                     ? "border-green-400 bg-green-400 text-black"
                                     : "border-gray-600 hover:border-cyan-400"
                                 }`}
                               >
                                 {task.completed
-                                  ? "✓"
+                                  ? <span className="task-check-icon">✓</span>
                                   : ""}
                               </button>
 
                               <div className="min-w-0 flex-1">
 
                                 <p
-                                  className={`truncate text-sm font-medium ${
+                                  className={`task-title truncate text-sm font-medium ${
                                     task.completed
                                       ? "text-gray-600 line-through"
                                       : "text-gray-200"
@@ -1917,16 +1918,17 @@ export default function Home() {
                               </div>
 
                               <span
-                                className={`hidden rounded-lg px-2 py-1 text-[10px] font-semibold sm:block ${
+                                className={`task-priority hidden items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-semibold sm:inline-flex ${
                                   task.priority ===
                                   "High"
-                                    ? "bg-red-400/10 text-red-400"
+                                    ? "task-priority-high bg-red-400/10 text-red-400"
                                     : task.priority ===
                                       "Medium"
-                                    ? "bg-yellow-400/10 text-yellow-400"
-                                    : "bg-green-400/10 text-green-400"
+                                    ? "task-priority-medium bg-yellow-400/10 text-yellow-400"
+                                    : "task-priority-low bg-green-400/10 text-green-400"
                                 }`}
                               >
+                                <span className="task-priority-dot" aria-hidden="true" />
                                 {
                                   task.priority
                                 }
@@ -1938,7 +1940,8 @@ export default function Home() {
                                     task
                                   )
                                 }
-                                className="text-xs text-gray-700 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
+                                aria-label={`Delete ${task.title}`}
+                                className="task-delete flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base text-gray-600 hover:bg-red-400/10 hover:text-red-400"
                               >
                                 ×
                               </button>
@@ -2285,6 +2288,7 @@ export default function Home() {
                               <span className="text-[10px] text-gray-600">
                                 Target:{" "}
                                 {
+                                  
                                   goal.target_date
                                 }
                               </span>
