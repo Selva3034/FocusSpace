@@ -2549,9 +2549,9 @@ function QuickAction({
       className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03] p-4 text-left transition-all duration-300 ease-out hover:-translate-y-1 hover:border-cyan-400/25 hover:bg-cyan-400/[0.06] hover:shadow-[0_10px_30px_-15px_rgba(34,211,238,0.35)] active:translate-y-0 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
     >
 
-      <div className="quick-action-icon text-cyan-400">
-        {icon}
-      </div>
+     <div className="text-cyan-400 transition-transform duration-300 group-hover:scale-125 group-hover:-rotate-6">
+  {icon}
+</div>
 
       <p className="mt-2 text-sm font-semibold">
         {title}
