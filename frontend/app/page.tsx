@@ -3,6 +3,7 @@ import FocusStats from "./FocusStats";
 import FocusAnalytics from "./FocusAnalytics";
 import FocusStreak from "./FocusStreak";
 import { useEffect, useMemo, useState } from "react";
+import FocusGoalRing from "./FocusGoalRing";
 
 import TaskManager from "./TaskManager";
 import ProjectsManager from "./ProjectsManager";
