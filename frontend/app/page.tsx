@@ -1640,6 +1640,12 @@ export default function Home() {
                 />
 
               </div>
+              <div className="mt-6">
+  <FocusGoalRing
+    completedMinutes={0}
+    goalMinutes={120}
+  />
+</div>
 
               {/* QUICK ADD */}
 
